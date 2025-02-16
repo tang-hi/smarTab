@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tab Organizer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            width: 200px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f5f5f5;
+        }
+
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        li {
+            margin: 5px 0;
+        }
+
+        .title {
+            font-weight: bold;
+        }
+
+        .pathname {
+            color: gray;
+        }
+
+        .group-button {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 24px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .group-button:hover {
+            background: #3367d6;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            display: none;
+            animation: spin 1s linear infinite;
+        }
+
+        .group-button.loading .spinner {
+            display: inline-block;
+        }
+
+        .group-button.loading .button-text {
+            opacity: 0.7;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+
+<body>
+    <button id="groupButton" class="group-button">
+        <span class="spinner"></span>
+        <span class="button-text">Group Tabs</span>
+    </button>
+    <script src="popup.js" type="module"></script>
+</body>
+
+</html>
