@@ -147,25 +147,25 @@ async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
       url: tab.url
     }
   ));
-  const systemPrompt = `你是一个浏览器标签页分组助手。你的任务是分析用户的标签页并提供合理的分组建议。
+  const systemPrompt = `You are a browser tab grouping assistant. Your task is to analyze the user's tabs and provide reasonable grouping suggestions.
 
-  示例输出格式：
+  Example output format:
   {
       "groups": [
           {
-              "group_name": "工作文档",
+              "group_name": "Work Documents",
               "group_color": "blue",
               "tab_indices": [0, 1, 2],
           },
           {
-              "group_name": "社交媒体",
+              "group_name": "Social Media",
               "group_color": "pink",
               "tab_indices": [3, 4],
           }
       ]
   }
   
-  示例输出Schema:
+  Example output Schema:
   {
       "groups": [
           {
@@ -176,21 +176,21 @@ async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
       ]
   }
   
-  注意事项：
-  1. group_color 必须是以下选项之一: grey, blue, red, yellow, green, pink, purple, cyan
-  2. group_name 应该简短有意义
-  3. tab_indices 必须是有效的标签页索引
-  4. 响应必须是有效的JSON格式
-  5. 每个组最多包含 ${maxTabsPerGroup} 个标签页
-  ${customGroupingInstructions ? `6. 遵循以下自定义分组说明: ${customGroupingInstructions}` : ""}
+  Notes:
+  1. group_color must be one of the following options: grey, blue, red, yellow, green, pink, purple, cyan
+  2. group_name should be short and meaningful
+  3. tab_indices must be valid tab indices
+  4. The response must be valid JSON format
+  5. Each group should contain at most ${maxTabsPerGroup} tabs
+  ${customGroupingInstructions ? `6. Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}
   `;
 
-  const userPrompt = `请分析以下浏览器标签页并建议合理的分组：
-  标签页: ${JSON.stringify(tabsInfo, null, 2)}
+  const userPrompt = `Please analyze the following browser tabs and suggest reasonable groupings:
+  Tabs: ${JSON.stringify(tabsInfo, null, 2)}
 
-  注意事项：
-  每个组最多包含 ${maxTabsPerGroup} 个标签页
-  ${customGroupingInstructions ? `遵循以下自定义分组说明: ${customGroupingInstructions}` : ""}`;
+  Notes:
+  Each group should contain at most ${maxTabsPerGroup} tabs
+  ${customGroupingInstructions ? `Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}`;
   const response = await fetch(
     'https://aihubmix.com/v1/chat/completions',
     {
