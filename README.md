@@ -1,4 +1,4 @@
-# Chrome Extension App
+# smarTab
 
 This project is a Chrome extension that retrieves the current open tab, sends the title and URL to a large language model for reorganization, and groups the tabs based on the model's response.
 
@@ -15,7 +15,7 @@ This project is a Chrome extension that retrieves the current open tab, sends th
 1. Clone the repository or download the project files.
 2. Open Chrome and navigate to `chrome://extensions/`.
 3. Enable "Developer mode" by toggling the switch in the top right corner.
-4. Click on "Load unpacked" and select the `chrome-extension-app` directory.
+4. Click on "Load unpacked" and select the `smarTab` directory.
 5. The extension should now be loaded and ready to use.
 
 ## Usage

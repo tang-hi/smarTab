@@ -8,9 +8,12 @@
     "tabGroups",
     "activeTab"
   ],
+  "host_permissions": [
+    "https://idealab.alibaba-inc.com/*",
+    "https://idealab.alibaba-inc.com/api/openai/v1/chat/completions"
+  ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
