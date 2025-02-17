@@ -22,23 +22,27 @@ async function focusTab(activeInfo) {
     const tab = await chrome.tabs.get(activeInfo.tabId);
     console.log(`Focus tab ID: ${activeInfo.tabId}`);
 
-    if (tab.groupId !== -1 && tab.groupId !== currentActiveGroupId) {
-      if (currentActiveGroupId !== null) {
+    chrome.storage.sync.get(['closeOtherGroups'], async (result) => {
+      const closeOtherGroups = result.closeOtherGroups ?? true;
+
+      if (tab.groupId !== -1 && tab.groupId !== currentActiveGroupId) {
+        if (currentActiveGroupId !== null && closeOtherGroups) {
+          try {
+            await updateTabGroup(currentActiveGroupId, { collapsed: true });
+          } catch (e) {
+            console.log('Failed to collapse previous group:', e);
+          }
+        }
+
         try {
-          await updateTabGroup(currentActiveGroupId, { collapsed: true });
+          await updateTabGroup(tab.groupId, { collapsed: false });
+          currentActiveGroupId = tab.groupId;
         } catch (e) {
-          console.log('Failed to collapse previous group:', e);
+          console.log('Failed to expand current group:', e);
+          currentActiveGroupId = null;
         }
       }
-
-      try {
-        await updateTabGroup(tab.groupId, { collapsed: false });
-        currentActiveGroupId = tab.groupId;
-      } catch (e) {
-        console.log('Failed to expand current group:', e);
-        currentActiveGroupId = null;
-      }
-    }
+    });
 
   } catch (error) {
     console.error('Error focusing tab:', error);
@@ -134,7 +138,7 @@ async function sendToQwen(tabs) {
   return JSON.parse(data.choices[0].message.content);
 }
 
-async function sendToGemini(tabs) {
+async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
   const GEMINI_KEY = "sk-Tn1eMplji0QTTg8H5055184a947c4eB4829c15Fb7092A42b";
 
   const tabsInfo = tabs.map(tab => (
@@ -143,24 +147,6 @@ async function sendToGemini(tabs) {
       url: tab.url
     }
   ));
-  const prompt = `Analyze these browser tabs and suggest logical groupings:
-  Tabs: ${JSON.stringify(tabsInfo, null, 2)}
-  
-  Group these tabs using this JSON schema:
-  {
-      "groups": [
-          {
-              "group_name": string,
-              "group_color": string, // one of: grey, blue, red, yellow, green, pink, purple, cyan
-              "tab_indices": number[], // indices of tabs that belong to this group
-              "reasoning": string
-          }
-      ]
-  }
-  
-  Consider common themes, domains, purposes, and content types when grouping.
-  Return only valid JSON.`;
-  console.log(prompt);
   const systemPrompt = `你是一个浏览器标签页分组助手。你的任务是分析用户的标签页并提供合理的分组建议。
 
   示例输出格式：
@@ -195,10 +181,16 @@ async function sendToGemini(tabs) {
   2. group_name 应该简短有意义
   3. tab_indices 必须是有效的标签页索引
   4. 响应必须是有效的JSON格式
+  5. 每个组最多包含 ${maxTabsPerGroup} 个标签页
+  ${customGroupingInstructions ? `6. 遵循以下自定义分组说明: ${customGroupingInstructions}` : ""}
   `;
 
   const userPrompt = `请分析以下浏览器标签页并建议合理的分组：
-  标签页: ${JSON.stringify(tabsInfo, null, 2)}`;
+  标签页: ${JSON.stringify(tabsInfo, null, 2)}
+
+  注意事项：
+  每个组最多包含 ${maxTabsPerGroup} 个标签页
+  ${customGroupingInstructions ? `遵循以下自定义分组说明: ${customGroupingInstructions}` : ""}`;
   const response = await fetch(
     'https://aihubmix.com/v1/chat/completions',
     {
@@ -245,7 +237,9 @@ chrome.runtime.onMessage.addListener(
   function (request, sender, sendResponse) {
     if (request.action === "getGroupingSuggestions") {
       const tabs = request.tabs;
-      sendToGemini(tabs)
+      const maxTabsPerGroup = request.maxTabsPerGroup;
+      const customGroupingInstructions = request.customGroupingInstructions;
+      sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions)
         .then(groupingSuggestions => {
           sendResponse({ groupingSuggestions: groupingSuggestions });
         })

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <link rel="stylesheet" href="settings.css">
+</head>
+
+<body>
+    <div class="settings-panel">
+        <h3>Settings</h3>
+        <div class="setting-item">
+            <label for="closeOtherGroups">Close other tab groups on focus</label>
+            <input type="checkbox" id="closeOtherGroups">
+        </div>
+        <div class="setting-item">
+            <label for="maxTabsPerGroup">Max tabs per group:</label>
+            <input type="number" id="maxTabsPerGroup" min="1" value="10">
+        </div>
+        <div class="setting-item">
+            <label for="customGroupingInstructions">Custom Grouping Instructions:</label>
+            <textarea id="customGroupingInstructions" rows="4" cols="30"></textarea>
+        </div>
+    </div>
+    <script src="settings.js"></script>
+</body>
+
+</html>

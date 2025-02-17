@@ -13,17 +13,28 @@ async function getTabs() {
             groupButton.classList.add('loading');
             await removeExistingGroups();
 
-            // Send message to background script to get grouping suggestions
-            chrome.runtime.sendMessage({ action: "getGroupingSuggestions", tabs: tabs },
-                function (response) {
-                    if (response && response.groupingSuggestions) {
-                        console.log("LLM Suggestions:", response.groupingSuggestions);
-                        createTabGroups(tabs, response.groupingSuggestions);
-                    } else {
-                        console.error("Error getting grouping suggestions from background script");
-                    }
-                    groupButton.classList.remove('loading');
-                });
+            chrome.storage.sync.get(['maxTabsPerGroup', 'customGroupingInstructions'], (result) => {
+                const maxTabsPerGroup = result.maxTabsPerGroup ?? 10;
+                const customGroupingInstructions = result.customGroupingInstructions ?? "";
+
+                // Send message to background script to get grouping suggestions
+                chrome.runtime.sendMessage({
+                    action: "getGroupingSuggestions",
+                    tabs: tabs,
+                    maxTabsPerGroup: maxTabsPerGroup,
+                    customGroupingInstructions: customGroupingInstructions
+                },
+                    function (response) {
+                        if (response && response.groupingSuggestions) {
+                            console.log("LLM Suggestions:", response.groupingSuggestions);
+                            createTabGroups(tabs, response.groupingSuggestions);
+                        } else {
+                            console.error("Error getting grouping suggestions from background script");
+                        }
+                        groupButton.classList.remove('loading');
+                    });
+            });
+
 
         } catch (error) {
             console.error('Error grouping tabs:', error);

@@ -6,7 +6,8 @@
   "permissions": [
     "tabs",
     "tabGroups",
-    "activeTab"
+    "activeTab",
+    "storage"
   ],
   "host_permissions": [
     "https://idealab.alibaba-inc.com/*",
@@ -22,5 +23,6 @@
       "48": "images/icon-48.png",
       "128": "images/icon-128.png"
     }
-  }
+  },
+  "options_page": "settings.html"
 }
