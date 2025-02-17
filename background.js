@@ -200,7 +200,7 @@ async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash",
         messages: [
           {
             role: "system",
