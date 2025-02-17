@@ -78,7 +78,10 @@ async function createTabGroups(tabs, groupingSuggestions) {
         if (typeof tabIndices === 'string') {
             tabIndices = JSON.parse(tabIndices);
         }
-        const tabIds = tabIndices.map(index => tabs[index].id);
+        const tabIds = tabIndices.map(index => {
+            const tab = tabs[index];
+            return tab ? tab.id : null;
+        }).filter(id => id !== null);
         const newGroup = await chrome.tabs.group({ tabIds });
 
         // Check if active tab is in this group
