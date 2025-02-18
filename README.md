@@ -1,5 +1,9 @@
 # smarTab
 
+
+https://github.com/user-attachments/assets/aea59dc0-adab-4821-80f5-7df8ab019fd8
+
+
 This project is a Chrome extension that retrieves the current open tab, sends the title and URL to a large language model for reorganization, and groups the tabs based on the model's response.
 
 ## Project Structure
