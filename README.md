@@ -24,6 +24,12 @@ This project is a Chrome extension that retrieves the current open tab, sends th
 - The extension will retrieve the current open tab's title and URL.
 - It will send this information to a large language model for reorganization.
 - Based on the model's response, the extension will group the tabs accordingly.
+- Right-click on the extension icon to access additional options.
+    Click on the Options to configure the extension.
+    Support
+    1. Max Tab Per Group
+    2. Custom Group Instructions
+    3. enable auto expansion or not
 
 ## Contributing
 
