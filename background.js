@@ -59,12 +59,14 @@ function removeGroup(groupId) {
 async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
   const GEMINI_KEY = "sk-Tn1eMplji0QTTg8H5055184a947c4eB4829c15Fb7092A42b";
 
-  const tabsInfo = tabs.map(tab => (
-    {
+  const tabsInfo = tabs.map(tab => {
+    const url = new URL(tab.url);
+    const baseUrl = url.origin + url.pathname; // Extracts the base URL (origin + pathname)
+    return {
       title: tab.title,
-      url: tab.url
-    }
-  ));
+      url: baseUrl
+    };
+  });
   const systemPrompt = `You are a browser tab grouping assistant. Your task is to analyze the user's tabs and provide reasonable grouping suggestions.
 
   Example output format:
@@ -97,10 +99,11 @@ async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
   Notes:
   1. group_color must be one of the following options: grey, blue, red, yellow, green, pink, purple, cyan
   2. group_name should be short and meaningful
-  3. tab_indices must be valid tab indices
-  4. The response must be valid JSON format
-  5. Each group should contain at most ${maxTabsPerGroup} tabs
-  ${customGroupingInstructions ? `6. Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}
+  3. Add Emoji to group_name for better readability if needed
+  4. tab_indices must be valid tab indices
+  5. The response must be valid JSON format
+  6. Each group should contain at most ${maxTabsPerGroup} tabs
+  ${customGroupingInstructions ? `7. Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}
   `;
 
   const userPrompt = `Please analyze the following browser tabs and suggest reasonable groupings:
