@@ -199,6 +199,7 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
   ${customGroupingInstructions ? `Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}`;
 
   const groupingSuggestions = await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt);
+  console.log(groupingSuggestions);
   return convertTitlesToIndices(groupingSuggestions, tabs);
 }
 
@@ -206,6 +207,7 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
 // API Helper Functions
 // ==========================================
 async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
+  console.log("userPrompt:", userPrompt);
   const response = await fetch('https://aihubmix.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -222,12 +224,12 @@ async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
     })
   });
 
+
   if (!response.ok) {
     throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
   }
 
   const data = await response.json();
-  console.log(data.choices[0].message.content);
   return JSON.parse(data.choices[0].message.content);
 }
 
