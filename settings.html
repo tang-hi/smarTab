@@ -5,25 +5,174 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Settings</title>
-    <link rel="stylesheet" href="settings.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <style>
+        body {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 32px 48px;
+            font-family: system-ui, -apple-system, sans-serif;
+            color: var(--text-color);
+            min-width: 600px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .header img {
+            width: 32px;
+            height: 32px;
+            margin-right: 12px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .section {
+            margin-bottom: 32px;
+        }
+
+        .section h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            gap: 32px;
+        }
+
+        .setting-label {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 300px;
+        }
+
+        .setting-description {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 8px;
+            line-height: 1.5;
+            max-width: 500px;
+        }
+
+        .toggle {
+            position: relative;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #e5e7eb;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary-color);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(20px);
+        }
+
+        input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        .setting-row.full-width {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+        }
+
+        .setting-row.full-width .setting-label {
+            margin-bottom: 8px;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="settings-panel">
-        <h3>Settings</h3>
-        <div class="setting-item">
-            <label for="closeOtherGroups">Close other tab groups on focus</label>
-            <input type="checkbox" id="closeOtherGroups">
+    <div class="header">
+        <img src="images/logo-transparent.png" alt="SmarTab">
+        <h1>Settings</h1>
+    </div>
+
+    <div class="card section">
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Auto-collapse other groups</span>
+                <span class="setting-description">Automatically collapse other tab groups when switching between them</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="closeOtherGroups">
+                <span class="toggle-slider"></span>
+            </label>
         </div>
-        <div class="setting-item">
-            <label for="maxTabsPerGroup">Max tabs per group:</label>
-            <input type="number" id="maxTabsPerGroup" min="1" value="10">
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Maximum tabs per group</span>
+                <span class="setting-description">Limit the number of tabs in each group</span>
+            </div>
+            <input type="number" id="maxTabsPerGroup" min="2" max="20" value="8">
         </div>
-        <div class="setting-item">
-            <label for="customGroupingInstructions">Custom Grouping Instructions:</label>
-            <textarea id="customGroupingInstructions" rows="4" cols="30"></textarea>
+        <div class="setting-row full-width">
+            <div class="setting-label">
+                <span>Custom Grouping Instructions</span>
+                <span class="setting-description">Add specific instructions for how you want your tabs to be grouped (optional)</span>
+            </div>
+            <textarea id="customGroupingInstructions" placeholder="Example: Group development documentation separately from tutorial sites&#10;Keep shopping sites in their own group&#10;Put all video streaming sites together"></textarea>
         </div>
     </div>
+
     <script src="settings.js"></script>
 </body>
 

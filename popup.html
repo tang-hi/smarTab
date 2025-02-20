@@ -6,17 +6,101 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tab Organizer</title>
-    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="styles/main.css">
+    <style>
+        body {
+            width: 320px;
+            padding: 16px;
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .header img {
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin: 0;
+            color: var(--text-color);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 12px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        #groupTabs {
+            width: 100%;
+        }
+
+        .settings-link {
+            font-size: 12px;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+        }
+    </style>
 </head>
 
 <body>
     <div class="header">
-        <button id="groupButton" class="group-button">
-            <span class="spinner"></span>
-            <span class="button-text">Group Tabs</span>
+        <img src="images/logo-transparent.png" alt="SmarTab">
+        <h1>SmarTab</h1>
+    </div>
+
+    <div class="stats">
+        <div class="card stat-card">
+            <div class="stat-value" id="tabCount">0</div>
+            <div class="stat-label">Open Tabs</div>
+        </div>
+        <div class="card stat-card">
+            <div class="stat-value" id="groupCount">0</div>
+            <div class="stat-label">Groups</div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button id="groupButton" class="btn btn-primary">
+            Group Tabs
         </button>
     </div>
 
+    <a href="settings.html" class="settings-link">Settings</a>
     <script src="popup.js" type="module"></script>
 </body>
 

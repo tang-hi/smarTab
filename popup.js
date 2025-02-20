@@ -7,6 +7,14 @@ async function getTabs() {
 
     tabs.sort((a, b) => collator.compare(a.title, b.title));
 
+    const groups = await chrome.tabGroups.query({});
+
+    // set group Number and Tab Number
+    const tabCount = document.getElementById('tabCount');
+    tabCount.innerText = tabs.length;
+    const groupCount = document.getElementById('groupCount');
+    groupCount.innerText = groups.length;
+
     const groupButton = document.getElementById('groupButton');
     groupButton.onclick = async () => {
         try {
