@@ -6,6 +6,9 @@ https://github.com/user-attachments/assets/aea59dc0-adab-4821-80f5-7df8ab019fd8
 
 This project is a Chrome extension that retrieves the current open tab, sends the title and URL to a large language model for reorganization, and groups the tabs based on the model's response.
 
+## ATTENTION
+**I have currently disabled the API_KEY in my code because I discovered it was stolen. You can use your own API_KEY to continue using this plugin, or wait until I resolve the API_KEY issue and publish it on the webstore, then use it.**
+
 ## Project Structure
 
 - **manifest.json**: Configuration file for the Chrome extension.
