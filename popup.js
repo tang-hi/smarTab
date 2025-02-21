@@ -7,13 +7,12 @@ async function getTabs() {
         'currentWindowOnly',
         'includeFrozenTabs'
     ]);
-
-    const queryOptions = {
-        currentWindow: settings.currentWindowOnly ?? true
-    };
+    const queryOptions = {}
+    if (settings.currentWindowOnly) {
+        queryOptions['currentWindow'] = true;
+    }
 
     let tabs = await chrome.tabs.query(queryOptions);
-    const activeTab = tabs.find(tab => tab.active);
 
     // Apply filters based on settings
     tabs = tabs.filter(tab => {
@@ -22,6 +21,7 @@ async function getTabs() {
         if (!settings.includeFrozenTabs && tab.discarded) return false;
         return true;
     });
+
 
     const collator = new Intl.Collator();
 
