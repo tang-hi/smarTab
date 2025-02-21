@@ -1,8 +1,28 @@
 console.log('Popup script loaded');
 
 async function getTabs() {
-    const tabs = await chrome.tabs.query({});
-    console.log(tabs);
+    const settings = await chrome.storage.sync.get([
+        'includeActiveTab',
+        'includeGroupedTabs',
+        'currentWindowOnly',
+        'includeFrozenTabs'
+    ]);
+
+    const queryOptions = {
+        currentWindow: settings.currentWindowOnly ?? true
+    };
+
+    let tabs = await chrome.tabs.query(queryOptions);
+    const activeTab = tabs.find(tab => tab.active);
+
+    // Apply filters based on settings
+    tabs = tabs.filter(tab => {
+        if (!settings.includeActiveTab && tab.active) return false;
+        if (!settings.includeGroupedTabs && tab.groupId !== -1) return false;
+        if (!settings.includeFrozenTabs && tab.discarded) return false;
+        return true;
+    });
+
     const collator = new Intl.Collator();
 
     tabs.sort((a, b) => collator.compare(a.title, b.title));
@@ -19,7 +39,9 @@ async function getTabs() {
     groupButton.onclick = async () => {
         try {
             groupButton.classList.add('loading');
-            await removeExistingGroups();
+            if (settings.includeGroupedTabs) {
+                await removeExistingGroups();
+            }
 
             chrome.storage.sync.get(['maxTabsPerGroup', 'customGroupingInstructions'], (result) => {
                 const maxTabsPerGroup = result.maxTabsPerGroup ?? 10;
@@ -56,7 +78,8 @@ async function getTabs() {
 async function removeExistingGroups() {
     try {
         // Get all tabs
-        const tabs = await chrome.tabs.query({});
+        const currentWindowOnly = await chrome.storage.sync.get('currentWindowOnly');
+        const tabs = await chrome.tabs.query({ currentWindow: currentWindowOnly.currentWindowOnly ?? true });
 
         // Get unique group IDs
         const groupIds = [...new Set(tabs

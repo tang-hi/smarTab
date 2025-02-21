@@ -4,7 +4,6 @@
 console.log('Background service worker initialized');
 
 let currentActiveGroupId = null;
-const GEMINI_KEY = "sk-Tn1eMplji0QTTg8H5055184a947c4eB4829c15Fb7092A42b";
 
 // ==========================================
 // Utility Functions
@@ -208,14 +207,50 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
 // ==========================================
 async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
   console.log("userPrompt:", userPrompt);
-  const response = await fetch('https://aihubmix.com/v1/chat/completions', {
+
+  const settings = await chrome.storage.sync.get(['geminiApiKey']);
+  const useCustomApi = settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
+
+  if (useCustomApi) {
+    return await makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, settings.geminiApiKey);
+  } else {
+    return await makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt);
+  }
+}
+
+async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, apiKey) {
+  console.log('Using custom Gemini');
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${GEMINI_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: "gemini-2.0-flash",
+      contents: [{
+        parts: [{ text: systemPrompt + '\n' + userPrompt }],
+      }],
+      generationConfig: {
+        response_mime_type: "application/json",
+      }
+    })
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  return JSON.parse(data.candidates[0].content.parts[0].text);
+}
+
+async function makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
+  console.log('Using proxy Gemini');
+  const response = await fetch('https://smartab.work:443/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
@@ -224,13 +259,11 @@ async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
     })
   });
 
-
   if (!response.ok) {
     throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
   }
 
-  const data = await response.json();
-  return JSON.parse(data.choices[0].message.content);
+  return await response.json();
 }
 
 function convertTitlesToIndices(groupingSuggestions, tabs) {

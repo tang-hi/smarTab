@@ -1,17 +1,13 @@
 {
   "manifest_version": 3,
   "name": "smartTab",
-  "version": "0.1",
+  "version": "1.0",
   "description": "Retrieves the current open tab, sends the title and URL to a large language model for reorganization, and groups the tabs based on the model's response.",
   "permissions": [
     "tabs",
     "tabGroups",
     "activeTab",
     "storage"
-  ],
-  "host_permissions": [
-    "https://idealab.alibaba-inc.com/*",
-    "https://idealab.alibaba-inc.com/api/openai/v1/chat/completions"
   ],
   "background": {
     "service_worker": "background.js"

@@ -20,6 +20,7 @@
             display: flex;
             align-items: center;
             margin-bottom: 40px;
+            gap: 12px;
         }
 
         .header img {
@@ -31,6 +32,27 @@
         .header h1 {
             font-size: 24px;
             margin: 0;
+        }
+
+        .back-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: var(--radius-sm);
+            color: var(--text-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .back-button:hover {
+            background-color: var(--hover-color);
+        }
+
+        .back-button svg {
+            width: 20px;
+            height: 20px;
         }
 
         .section {
@@ -137,11 +159,24 @@
         .setting-row.full-width .setting-label {
             margin-bottom: 8px;
         }
+
+        input[type="password"] {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+        }
     </style>
 </head>
 
 <body>
     <div class="header">
+        <button class="back-button" id="backButton">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+        </button>
         <img src="images/logo-transparent.png" alt="SmarTab">
         <h1>Settings</h1>
     </div>
@@ -149,11 +184,58 @@
     <div class="card section">
         <div class="setting-row">
             <div class="setting-label">
+                <span>Custom Gemini API Key</span>
+                <span class="setting-description">Use your own Gemini API key for faster responses (optional)</span>
+            </div>
+            <input type="password" id="geminiApiKey" placeholder="Enter API key">
+        </div>
+        <div class="setting-row">
+            <div class="setting-label">
                 <span>Auto-collapse other groups</span>
                 <span class="setting-description">Automatically collapse other tab groups when switching between them</span>
             </div>
             <label class="toggle">
                 <input type="checkbox" id="closeOtherGroups">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Include active tab</span>
+                <span class="setting-description">Include the currently active tab when grouping</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="includeActiveTab">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Include grouped tabs</span>
+                <span class="setting-description">Include tabs that are already in a group</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="includeGroupedTabs">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Current window only</span>
+                <span class="setting-description">Only group tabs from the current window</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="currentWindowOnly">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Include frozen tabs</span>
+                <span class="setting-description">Include tabs that are frozen/discarded</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="includeFrozenTabs">
                 <span class="toggle-slider"></span>
             </label>
         </div>
@@ -171,6 +253,7 @@
             </div>
             <textarea id="customGroupingInstructions" placeholder="Example: Group development documentation separately from tutorial sites&#10;Keep shopping sites in their own group&#10;Put all video streaming sites together"></textarea>
         </div>
+       
     </div>
 
     <script src="settings.js"></script>
