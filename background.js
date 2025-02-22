@@ -143,7 +143,24 @@ async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
   Each group should contain at most ${maxTabsPerGroup} tabs
   ${customGroupingInstructions ? `Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}`;
 
-  return await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt);
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      groups: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            group_name: { type: "STRING" },
+            group_color: { type: "STRING" },
+            tab_indices: { type: "ARRAY", items: { type: "NUMBER" } },
+          },
+          required: ["group_name", "group_color", "tab_indices"],
+        },
+      }
+    },
+  }
+  return await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_format);
 }
 
 async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGroupingInstructions) {
@@ -196,30 +213,49 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
   Notes:
   Each group should contain at most ${maxTabsPerGroup} tabs, unless there are too many very similar tabs to group together
   ${customGroupingInstructions ? `Follow these custom grouping instructions: ${customGroupingInstructions}` : ""}`;
-
-  const groupingSuggestions = await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt);
+ 
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      groups: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            group_name: { type: "STRING" },
+            group_color: { type: "STRING" },
+            tab_titles: { type: "ARRAY", items: { type: "STRING" } },
+          },
+          required: ["group_name", "group_color", "tab_titles"],
+        },
+      }
+    },
+  }
+  const groupingSuggestions = await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_format);
   console.log(groupingSuggestions);
+
   return convertTitlesToIndices(groupingSuggestions, tabs);
 }
 
 // ==========================================
 // API Helper Functions
 // ==========================================
-async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
+async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema) {
   console.log("userPrompt:", userPrompt);
 
   const settings = await chrome.storage.sync.get(['geminiApiKey']);
   const useCustomApi = settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
 
   if (useCustomApi) {
-    return await makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, settings.geminiApiKey);
+    return await makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, settings.geminiApiKey);
   } else {
     return await makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt);
   }
 }
 
-async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, apiKey) {
+async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, apiKey) {
   console.log('Using custom Gemini');
+  console.log(response_schema);
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
     method: 'POST',
     headers: {
@@ -231,6 +267,7 @@ async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, apiKe
       }],
       generationConfig: {
         response_mime_type: "application/json",
+        response_schema: response_schema
       }
     })
   });
