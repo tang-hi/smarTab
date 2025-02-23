@@ -26,6 +26,19 @@ function levenshteinDistance(s1, s2) {
   return dp[m][n];
 }
 
+function validateGroupingSuggestions(suggestions) {
+  if (!suggestions?.groups || !Array.isArray(suggestions.groups)) {
+    return false;
+  }
+
+  return suggestions.groups.every(group => 
+    group.group_name && 
+    typeof group.group_name === 'string' &&
+    group.group_color && 
+    (group.tab_indices || group.tab_titles)
+  );
+}
+
 function extractTabInfo(tabs) {
   return tabs.map(tab => {
     const url = new URL(tab.url);
@@ -240,17 +253,30 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
 // ==========================================
 // API Helper Functions
 // ==========================================
-async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema) {
-  console.log("userPrompt:", userPrompt);
+async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, maxRetries = 3) {
+  let attempts = 0;
+  while (attempts < maxRetries) {
+    try {
+      const settings = await chrome.storage.sync.get(['geminiApiKey']);
+      const useCustomApi = settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
+      
+      const result = useCustomApi 
+        ? await makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, settings.geminiApiKey)
+        : await makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt);
 
-  const settings = await chrome.storage.sync.get(['geminiApiKey']);
-  const useCustomApi = settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
-
-  if (useCustomApi) {
-    return await makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, settings.geminiApiKey);
-  } else {
-    return await makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt);
+      if (validateGroupingSuggestions(result)) {
+        return result;
+      }
+      console.log(`Invalid response format on attempt ${attempts + 1}, retrying...`);
+    } catch (error) {
+      console.error(`Error on attempt ${attempts + 1}:`, error);
+    }
+    attempts++;
+    if (attempts < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+    }
   }
+  throw new Error('Failed to get valid grouping suggestions after multiple attempts');
 }
 
 async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, apiKey) {
