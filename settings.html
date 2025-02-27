@@ -201,6 +201,16 @@
         </div>
         <div class="setting-row">
             <div class="setting-label">
+                <span>Auto-group new tabs</span>
+                <span class="setting-description">Automatically group new tabs after 10 seconds of opening</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="autoGroupNewTabs">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="setting-row">
+            <div class="setting-label">
                 <span>Only active tab</span>
                 <span class="setting-description">Only work with the currently active tab when grouping</span>
             </div>
@@ -253,7 +263,16 @@
             </div>
             <textarea id="customGroupingInstructions" placeholder="Example: Group development documentation separately from tutorial sites&#10;Keep shopping sites in their own group&#10;Put all video streaming sites together"></textarea>
         </div>
-       
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>Use advanced grouping</span>
+                <span class="setting-description">Use more accurate (but slower) grouping algorithm, better for complex tab collections</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="useAdvancedGrouping">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
     </div>
 
     <script src="settings.js"></script>

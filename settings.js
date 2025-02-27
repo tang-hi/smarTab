@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentWindowOnly = document.getElementById('currentWindowOnly');
     const includeFrozenTabs = document.getElementById('includeFrozenTabs');
     const geminiApiKey = document.getElementById('geminiApiKey');
+    const useAdvancedGrouping = document.getElementById('useAdvancedGrouping'); // New setting
+    const autoGroupNewTabs = document.getElementById('autoGroupNewTabs'); // New setting
 
     // Load saved settings
     chrome.storage.sync.get([
@@ -18,7 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
         'includeGroupedTabs',
         'currentWindowOnly',
         'includeFrozenTabs',
-        'geminiApiKey'
+        'geminiApiKey',
+        'useAdvancedGrouping', // New setting
+        'autoGroupNewTabs' // New setting
     ], (result) => {
         closeOtherGroups.checked = result.closeOtherGroups ?? true;
         maxTabsPerGroup.value = result.maxTabsPerGroup ?? 10;
@@ -28,6 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
         currentWindowOnly.checked = result.currentWindowOnly ?? true;
         includeFrozenTabs.checked = result.includeFrozenTabs ?? true;
         geminiApiKey.value = result.geminiApiKey ?? '';
+        useAdvancedGrouping.checked = result.useAdvancedGrouping ?? false; // New setting with default false
+        autoGroupNewTabs.checked = result.autoGroupNewTabs ?? false; // New setting with default false
     });
 
     closeOtherGroups.addEventListener('change', () => {
@@ -64,5 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     geminiApiKey.addEventListener('change', () => {
         chrome.storage.sync.set({ geminiApiKey: geminiApiKey.value });
+    });
+
+    useAdvancedGrouping.addEventListener('change', () => {
+        chrome.storage.sync.set({ useAdvancedGrouping: useAdvancedGrouping.checked });
+    });
+
+    autoGroupNewTabs.addEventListener('change', () => {
+        chrome.storage.sync.set({ autoGroupNewTabs: autoGroupNewTabs.checked });
     });
 });
