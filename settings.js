@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxTabsPerGroup = document.getElementById('maxTabsPerGroup');
     const customGroupingInstructions = document.getElementById('customGroupingInstructions');
     const backButton = document.getElementById('backButton');
-    const includeActiveTab = document.getElementById('includeActiveTab');
+    const onlyIncludeActiveTab = document.getElementById('onlyIncludeActiveTab'); // Changed from includeActiveTab
     const includeGroupedTabs = document.getElementById('includeGroupedTabs');
     const currentWindowOnly = document.getElementById('currentWindowOnly');
     const includeFrozenTabs = document.getElementById('includeFrozenTabs');
@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'closeOtherGroups', 
         'maxTabsPerGroup', 
         'customGroupingInstructions',
-        'includeActiveTab',
+        'onlyIncludeActiveTab', // Changed from includeActiveTab
         'includeGroupedTabs',
         'currentWindowOnly',
         'includeFrozenTabs',
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
         closeOtherGroups.checked = result.closeOtherGroups ?? true;
         maxTabsPerGroup.value = result.maxTabsPerGroup ?? 10;
         customGroupingInstructions.value = result.customGroupingInstructions ?? "";
-        includeActiveTab.checked = result.includeActiveTab ?? true;
+        onlyIncludeActiveTab.checked = result.onlyIncludeActiveTab ?? false; // Changed from includeActiveTab
         includeGroupedTabs.checked = result.includeGroupedTabs ?? false;
         currentWindowOnly.checked = result.currentWindowOnly ?? true;
         includeFrozenTabs.checked = result.includeFrozenTabs ?? true;
@@ -46,8 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
         window.history.back();
     });
 
-    includeActiveTab.addEventListener('change', () => {
-        chrome.storage.sync.set({ includeActiveTab: includeActiveTab.checked });
+    onlyIncludeActiveTab.addEventListener('change', () => {
+        chrome.storage.sync.set({ onlyIncludeActiveTab: onlyIncludeActiveTab.checked }); // Changed from includeActiveTab
     });
 
     includeGroupedTabs.addEventListener('change', () => {

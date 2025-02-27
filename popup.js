@@ -2,7 +2,7 @@ console.log('Popup script loaded');
 
 async function getTabs() {
     const settings = await chrome.storage.sync.get([
-        'includeActiveTab',
+        'onlyIncludeActiveTab', // Changed from includeActiveTab
         'includeGroupedTabs',
         'currentWindowOnly',
         'includeFrozenTabs'
@@ -16,7 +16,7 @@ async function getTabs() {
 
     // Apply filters based on settings
     tabs = tabs.filter(tab => {
-        if (!settings.includeActiveTab && tab.active) return false;
+        if (settings.onlyIncludeActiveTab && !tab.active) return false;
         if (!settings.includeGroupedTabs && tab.groupId !== -1) return false;
         if (!settings.includeFrozenTabs && tab.discarded) return false;
         return true;
