@@ -6,6 +6,12 @@ SmarTab is a browser extension that uses AI to intelligently organize your brows
 
 [![Chrome Web Store](https://img.shields.io/chrome-web-store/v/ffddpdidlmbeleejbllbimfhlmahkkln?label=Chrome%20Web%20Store&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln)
 
+## Demo
+
+See SmarTab in action:
+
+https://github.com/user-attachments/assets/f87bd6c2-dbd5-4b98-8b6a-dcad699c1e0f
+
 ## Features
 
 ### Smart Tab Grouping
