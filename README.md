@@ -1,48 +1,61 @@
-# smarTab
+# SmarTab - AI-Powered Tab Management
 
+![SmarTab Logo](images/128.png)
 
+SmarTab is a browser extension that uses AI to intelligently organize your browser tabs into meaningful groups, helping you stay organized and reduce tab clutter.
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/ffddpdidlmbeleejbllbimfhlmahkkln?label=Chrome%20Web%20Store&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln)
 
-https://github.com/user-attachments/assets/f87bd6c2-dbd5-4b98-8b6a-dcad699c1e0f
+## Features
 
+### Smart Tab Grouping
+SmarTab uses AI to analyze your open tabs and organize them into logical groups based on content similarity. The extension automatically:
+- Creates meaningful group names with emojis for better visual recognition
+- Assigns appropriate colors to each group based on content type
+- Handles large numbers of tabs efficiently
 
+### Auto Tab Management
+- **Auto-collapse other groups**: Automatically collapse other tab groups when switching between them, keeping your browser tidy
+- **Auto-group new tabs**: Automatically organize new tabs after 10 seconds, either adding them to an existing relevant group or creating a new group
 
+### Customization Options
+- **Custom API Key**: Use your own Gemini API key for faster responses (optional)
+- **Maximum tabs per group**: Control the maximum number of tabs in each group
+- **Custom grouping instructions**: Add specific instructions for how you want your tabs to be grouped
+- **Advanced grouping mode**: Enable a more accurate (but slower) grouping algorithm for complex tab collections
 
-This project is a Chrome extension that retrieves the current open tab, sends the title and URL to a large language model for reorganization, and groups the tabs based on the model's response.
+### Tab Selection Controls
+- **Current window only**: Choose to group tabs from only the current window or all windows
+- **Include/exclude options**:
+  - Group only the active tab
+  - Include already grouped tabs in the grouping process
+  - Include frozen/discarded tabs
 
-## Project Structure
+## How to Use
 
-- **manifest.json**: Configuration file for the Chrome extension.
-- **popup.html**: User interface for the extension's popup.
-- **popup.js**: Logic for the popup, including tab retrieval and grouping.
-- **background.js**: Background script for managing events and communication with the language model.
-- **README.md**: Documentation for the project.
+1. Click the SmarTab icon in your browser toolbar
+2. Review the count of tabs to be grouped
+3. Click "Group Tabs" to organize your tabs
+4. Tabs will be intelligently grouped with descriptive names and colors
 
-## Setup Instructions
+## Settings
 
-1. Clone the repository or download the project files.
-2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable "Developer mode" by toggling the switch in the top right corner.
-4. Click on "Load unpacked" and select the `smarTab` directory.
-5. The extension should now be loaded and ready to use.
+Access the settings page by clicking the gear icon in the popup to customize:
 
-## Usage
+- API configuration
+- Auto-grouping behaviors
+- Tab selection preferences
+- Grouping algorithm preferences
+- Custom grouping instructions
 
-- Click on the extension icon in the Chrome toolbar to open the popup.
-- The extension will retrieve the current open tab's title and URL.
-- It will send this information to a large language model for reorganization.
-- Based on the model's response, the extension will group the tabs accordingly.
-- Right-click on the extension icon to access additional options.
-    Click on the Options to configure the extension.
-    Support
-    1. Max Tab Per Group
-    2. Custom Group Instructions
-    3. enable auto expansion or not
+## Privacy
 
-## Contributing
+SmarTab processes your tab information to provide grouping suggestions. When using our shared API service, only tab titles and URLs are sent to the service. For maximum privacy, you can use your own Gemini API key in the settings.
 
-Feel free to submit issues or pull requests for any improvements or bug fixes.
+## Feedback and Support
 
-## License
+If you encounter any issues or have suggestions for improving SmarTab, please create an issue on our [GitHub repository](https://github.com/tang-hi/smarTab) or contact us through the Chrome Web Store.
 
-This project is licensed under the MIT License.
+---
+
+Made with ❤️ using Google's Gemini API
