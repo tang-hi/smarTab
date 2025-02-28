@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "smartTab",
-  "version": "1.0",
-  "description": "Retrieves the current open tab, sends the title and URL to a large language model for reorganization, and groups the tabs based on the model's response.",
+  "version": "1.1",
+  "description": "Retrieves the current open tab and groups the tabs based on the model's response.",
   "permissions": [
     "tabs",
     "tabGroups",
