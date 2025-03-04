@@ -1,15 +1,17 @@
-# SmarTab - AI-Powered Tab Management
+<h1 align="center"> SmarTab - AI-Powered Tab Management </h1>
 
-![SmarTab Logo](images/128.png)
+<h3 align="center"> SmarTab is a browser extension that uses AI to intelligently organize your browser tabs into meaningful groups, helping you stay organized and reduce tab clutter. </h3>
 
-SmarTab is a browser extension that uses AI to intelligently organize your browser tabs into meaningful groups, helping you stay organized and reduce tab clutter.
+<p align="center">
+<a href="https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln">
+<img style="height:100px" src="https://user-images.githubusercontent.com/53124886/111952712-34f12300-8aee-11eb-9fdd-ad579a1eb235.png"></img>
+</a>
+</p>
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/ffddpdidlmbeleejbllbimfhlmahkkln?label=Chrome%20Web%20Store&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln)
 
 ## Demo
 
 See SmarTab in action:
-
 https://github.com/user-attachments/assets/f87bd6c2-dbd5-4b98-8b6a-dcad699c1e0f
 
 ## Features
