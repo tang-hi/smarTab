@@ -3,37 +3,40 @@ document.addEventListener('DOMContentLoaded', () => {
     const maxTabsPerGroup = document.getElementById('maxTabsPerGroup');
     const customGroupingInstructions = document.getElementById('customGroupingInstructions');
     const backButton = document.getElementById('backButton');
-    const onlyIncludeActiveTab = document.getElementById('onlyIncludeActiveTab'); // Changed from includeActiveTab
+    const onlyIncludeActiveTab = document.getElementById('onlyIncludeActiveTab');
     const includeGroupedTabs = document.getElementById('includeGroupedTabs');
     const currentWindowOnly = document.getElementById('currentWindowOnly');
     const includeFrozenTabs = document.getElementById('includeFrozenTabs');
     const geminiApiKey = document.getElementById('geminiApiKey');
-    const useAdvancedGrouping = document.getElementById('useAdvancedGrouping'); // New setting
-    const autoGroupNewTabs = document.getElementById('autoGroupNewTabs'); // New setting
+    const useAdvancedGrouping = document.getElementById('useAdvancedGrouping');
+    const autoGroupNewTabs = document.getElementById('autoGroupNewTabs');
+    const excludePinnedTabs = document.getElementById('excludePinnedTabs'); // Pinned tabs exclusion option
 
     // Load saved settings
     chrome.storage.sync.get([
         'closeOtherGroups', 
         'maxTabsPerGroup', 
         'customGroupingInstructions',
-        'onlyIncludeActiveTab', // Changed from includeActiveTab
+        'onlyIncludeActiveTab',
         'includeGroupedTabs',
         'currentWindowOnly',
         'includeFrozenTabs',
         'geminiApiKey',
-        'useAdvancedGrouping', // New setting
-        'autoGroupNewTabs' // New setting
+        'useAdvancedGrouping',
+        'autoGroupNewTabs',
+        'excludePinnedTabs' // Just keep pinned tabs exclusion
     ], (result) => {
         closeOtherGroups.checked = result.closeOtherGroups ?? true;
         maxTabsPerGroup.value = result.maxTabsPerGroup ?? 10;
         customGroupingInstructions.value = result.customGroupingInstructions ?? "";
-        onlyIncludeActiveTab.checked = result.onlyIncludeActiveTab ?? false; // Changed from includeActiveTab
+        onlyIncludeActiveTab.checked = result.onlyIncludeActiveTab ?? false;
         includeGroupedTabs.checked = result.includeGroupedTabs ?? false;
         currentWindowOnly.checked = result.currentWindowOnly ?? true;
         includeFrozenTabs.checked = result.includeFrozenTabs ?? true;
         geminiApiKey.value = result.geminiApiKey ?? '';
-        useAdvancedGrouping.checked = result.useAdvancedGrouping ?? false; // New setting with default false
-        autoGroupNewTabs.checked = result.autoGroupNewTabs ?? false; // New setting with default false
+        useAdvancedGrouping.checked = result.useAdvancedGrouping ?? false;
+        autoGroupNewTabs.checked = result.autoGroupNewTabs ?? false;
+        excludePinnedTabs.checked = result.excludePinnedTabs ?? true; // Default to true for pinned tabs exclusion
     });
 
     closeOtherGroups.addEventListener('change', () => {
@@ -53,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     onlyIncludeActiveTab.addEventListener('change', () => {
-        chrome.storage.sync.set({ onlyIncludeActiveTab: onlyIncludeActiveTab.checked }); // Changed from includeActiveTab
+        chrome.storage.sync.set({ onlyIncludeActiveTab: onlyIncludeActiveTab.checked });
     });
 
     includeGroupedTabs.addEventListener('change', () => {
@@ -78,5 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     autoGroupNewTabs.addEventListener('change', () => {
         chrome.storage.sync.set({ autoGroupNewTabs: autoGroupNewTabs.checked });
+    });
+
+    // Event listener for pinned tabs exclusion
+    excludePinnedTabs.addEventListener('change', () => {
+        chrome.storage.sync.set({ excludePinnedTabs: excludePinnedTabs.checked });
     });
 });

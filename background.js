@@ -394,7 +394,11 @@ async function handleNewTab(tab) {
   }
 
   // Check if auto-grouping is enabled
-  const settings = await chrome.storage.sync.get(['autoGroupNewTabs']);
+  const settings = await chrome.storage.sync.get([
+    'autoGroupNewTabs',
+    'excludePinnedTabs'
+  ]);
+  
   if (!settings.autoGroupNewTabs) {
     console.log('Auto-grouping disabled');
     return;
@@ -414,6 +418,12 @@ async function handleNewTab(tab) {
         console.log(`Tab ${tab.id} skipped: `, 
           !currentTab.url ? 'No URL' : 
           currentTab.groupId !== -1 ? 'Already grouped' : 'Not HTTP');
+        return;
+      }
+      
+      // Check if this is a pinned tab and settings say to exclude pinned tabs
+      if (settings.excludePinnedTabs && currentTab.pinned) {
+        console.log(`Tab ${tab.id} skipped: Pinned tab is excluded by settings`);
         return;
       }
       
@@ -712,22 +722,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "getGroupingSuggestions") {
     const { tabs, maxTabsPerGroup, customGroupingInstructions } = request;
 
-    // Get the useAdvancedGrouping setting
-    chrome.storage.sync.get(['useAdvancedGrouping'], (settings) => {
+    // Get settings and filter out pinned tabs if needed
+    chrome.storage.sync.get(['useAdvancedGrouping', 'excludePinnedTabs'], async (settings) => {
+      let filteredTabs = [...tabs];
+      
+      // Filter out pinned tabs if the setting is enabled
+      if (settings.excludePinnedTabs) {
+        filteredTabs = filteredTabs.filter(tab => !tab.pinned);
+        console.log(`Filtered out pinned tabs, ${tabs.length - filteredTabs.length} tabs excluded`);
+      }
+
       // Choose handler based on setting or tab count
-      const useAdvanced = settings.useAdvancedGrouping || tabs.length >= 30;
+      const useAdvanced = settings.useAdvancedGrouping || filteredTabs.length >= 30;
       const handler = useAdvanced ? handleLargeBatchTabGrouping : sendToGemini;
 
-      console.log(`Handling grouping suggestions: ${tabs.length} tabs, using ${useAdvanced ? 'advanced' : 'standard'} mode`);
+      console.log(`Handling grouping suggestions: ${filteredTabs.length} tabs, using ${useAdvanced ? 'advanced' : 'standard'} mode`);
 
-      handler(tabs, maxTabsPerGroup, customGroupingInstructions)
-        .then(groupingSuggestions => {
-          sendResponse({ groupingSuggestions });
-        })
-        .catch(error => {
-          console.error("Error getting grouping suggestions:", error);
-          sendResponse({ error: error.message });
-        });
+      try {
+        const groupingSuggestions = await handler(filteredTabs, maxTabsPerGroup, customGroupingInstructions);
+        sendResponse({ groupingSuggestions });
+      } catch (error) {
+        console.error("Error getting grouping suggestions:", error);
+        sendResponse({ error: error.message });
+      }
     });
     
     return true; // Keep the message channel open for the async response
