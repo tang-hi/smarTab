@@ -382,6 +382,7 @@ function convertTitlesToIndices(groupingSuggestions, tabs) {
 // Auto Tab Grouping
 // ==========================================
 const pendingTabs = new Map(); // Track tabs waiting to be auto-grouped
+const regroupingTabs = new Set(); // Track tabs currently being regrouped to prevent duplicate operations
 
 async function handleNewTab(tab) {
   // Debug log
@@ -696,6 +697,114 @@ function cleanupPendingTab(tabId) {
     clearTimeout(pendingTabs.get(tabId).timeoutId);
     pendingTabs.delete(tabId);
   }
+  // Also clean up regrouping set
+  regroupingTabs.delete(tabId);
+}
+
+// ==========================================
+// Tab Regrouping for Existing Tabs
+// ==========================================
+/**
+ * Regroups an existing tab when its URL changes.
+ * This function evaluates if a grouped tab still belongs in its current group
+ * after navigating to new content, and moves it to a more appropriate group if needed.
+ * 
+ * @param {Object} tab - The tab object from Chrome tabs API
+ */
+async function regroupExistingTab(tab) {
+  try {
+    // Prevent duplicate regrouping operations for the same tab
+    if (regroupingTabs.has(tab.id)) {
+      console.log(`Tab ${tab.id} already being regrouped, skipping`);
+      return;
+    }
+    
+    regroupingTabs.add(tab.id);
+    console.log(`Regrouping tab ${tab.id} due to URL change:`, tab.url);
+    
+    // Check if regrouping is enabled
+    const settings = await chrome.storage.sync.get([
+      'autoRegroupTabs',
+      'excludePinnedTabs'
+    ]);
+    
+    if (!settings.autoRegroupTabs) {
+      console.log('Auto-regrouping disabled');
+      return;
+    }
+    
+    // Skip pinned tabs if setting is enabled
+    if (settings.excludePinnedTabs && tab.pinned) {
+      console.log(`Tab ${tab.id} skipped: Pinned tab is excluded by settings`);
+      return;
+    }
+    
+    // Skip non-HTTP tabs
+    if (!tab.url || !tab.url.startsWith('http')) {
+      console.log(`Tab ${tab.id} skipped: Not HTTP URL`);
+      return;
+    }
+    
+    // Get the current group of the tab
+    const currentGroupId = tab.groupId;
+    
+    // Get all existing groups in the current window (excluding the current tab's group)
+    const allGroups = await chrome.tabGroups.query({ windowId: tab.windowId });
+    const otherGroups = allGroups.filter(group => group.id !== currentGroupId);
+    
+    // Temporarily ungroup the tab for evaluation
+    await chrome.tabs.ungroup(tab.id);
+    console.log(`Tab ${tab.id} temporarily ungrouped for re-evaluation`);
+    
+    // If there are no other groups, create a new group
+    if (otherGroups.length === 0) {
+      await createNewGroupForTab(tab);
+      console.log(`Tab ${tab.id} moved to new group (no other groups available)`);
+      return;
+    }
+    
+    // Evaluate where this tab should go
+    const decision = await getGroupDecisionFromLLM(tab, otherGroups);
+    console.log("Regrouping decision:", decision);
+    
+    if (decision.create_new_group) {
+      // Create a new group
+      await createNewGroupForTab(tab, decision.suggested_name, decision.suggested_color);
+      console.log(`Tab ${tab.id} moved to new group: ${decision.suggested_name}`);
+    } else {
+      // Move to existing group
+      const targetGroupId = decision.target_group_id;
+      try {
+        await chrome.tabs.group({
+          tabIds: [tab.id],
+          groupId: targetGroupId
+        });
+        console.log(`Tab ${tab.id} moved to existing group ${targetGroupId}`);
+      } catch (error) {
+        console.error(`Error moving tab to group ${targetGroupId}:`, error);
+        // Fallback: try to move back to original group or create new one
+        try {
+          if (currentGroupId !== -1 && allGroups.some(g => g.id === currentGroupId)) {
+            await chrome.tabs.group({
+              tabIds: [tab.id], 
+              groupId: currentGroupId
+            });
+            console.log(`Tab ${tab.id} moved back to original group ${currentGroupId}`);
+          } else {
+            await createNewGroupForTab(tab);
+            console.log(`Tab ${tab.id} moved to fallback new group`);
+          }
+        } catch (fallbackError) {
+          console.error(`Fallback regrouping failed for tab ${tab.id}:`, fallbackError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Error regrouping tab ${tab.id}:`, error);
+  } finally {
+    // Always remove from regrouping set when done
+    regroupingTabs.delete(tab.id);
+  }
 }
 
 // ==========================================
@@ -707,11 +816,26 @@ chrome.tabs.onCreated.addListener(handleNewTab);
 
 // Sometimes the onCreated event doesn't have the URL yet, so we also listen for updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Only handle tabs that just got a URL assigned
+  // Handle URL changes for both new and existing tabs
   if (changeInfo.url && tab.url.startsWith('http')) {
-    // Check if this tab is not yet being tracked
-    if (!pendingTabs.has(tabId)) {
+    // Check if this tab is not yet being tracked (new tab)
+    if (!pendingTabs.has(tabId) && tab.groupId === -1) {
       handleNewTab(tab);
+    } else if (tab.groupId !== -1) {
+      // This is an existing grouped tab that changed URL - consider regrouping
+      // Add a delay to allow the page to fully load and avoid regrouping during redirects
+      setTimeout(() => {
+        // Get the updated tab state before regrouping
+        chrome.tabs.get(tabId).then(updatedTab => {
+          // Only regroup if the tab is still grouped and URL is stable
+          if (updatedTab.groupId !== -1 && updatedTab.url === tab.url) {
+            regroupExistingTab(updatedTab);
+          }
+        }).catch(error => {
+          // Tab might have been closed
+          console.log(`Tab ${tabId} no longer exists for regrouping`);
+        });
+      }, 3000); // 3 second delay to allow page content to load and avoid redirects
     }
   }
 });

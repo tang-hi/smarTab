@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const geminiApiKey = document.getElementById('geminiApiKey');
     const useAdvancedGrouping = document.getElementById('useAdvancedGrouping');
     const autoGroupNewTabs = document.getElementById('autoGroupNewTabs');
+    const autoRegroupTabs = document.getElementById('autoRegroupTabs');
     const excludePinnedTabs = document.getElementById('excludePinnedTabs'); // Pinned tabs exclusion option
 
     // Load saved settings
@@ -24,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'geminiApiKey',
         'useAdvancedGrouping',
         'autoGroupNewTabs',
+        'autoRegroupTabs',
         'excludePinnedTabs' // Just keep pinned tabs exclusion
     ], (result) => {
         closeOtherGroups.checked = result.closeOtherGroups ?? true;
@@ -36,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         geminiApiKey.value = result.geminiApiKey ?? '';
         useAdvancedGrouping.checked = result.useAdvancedGrouping ?? false;
         autoGroupNewTabs.checked = result.autoGroupNewTabs ?? false;
+        autoRegroupTabs.checked = result.autoRegroupTabs ?? false;
         excludePinnedTabs.checked = result.excludePinnedTabs ?? true; // Default to true for pinned tabs exclusion
     });
 
@@ -81,6 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     autoGroupNewTabs.addEventListener('change', () => {
         chrome.storage.sync.set({ autoGroupNewTabs: autoGroupNewTabs.checked });
+    });
+
+    autoRegroupTabs.addEventListener('change', () => {
+        chrome.storage.sync.set({ autoRegroupTabs: autoRegroupTabs.checked });
     });
 
     // Event listener for pinned tabs exclusion
