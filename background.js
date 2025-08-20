@@ -704,6 +704,13 @@ function cleanupPendingTab(tabId) {
 // ==========================================
 // Tab Regrouping for Existing Tabs
 // ==========================================
+/**
+ * Regroups an existing tab when its URL changes.
+ * This function evaluates if a grouped tab still belongs in its current group
+ * after navigating to new content, and moves it to a more appropriate group if needed.
+ * 
+ * @param {Object} tab - The tab object from Chrome tabs API
+ */
 async function regroupExistingTab(tab) {
   try {
     // Prevent duplicate regrouping operations for the same tab
@@ -816,10 +823,19 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       handleNewTab(tab);
     } else if (tab.groupId !== -1) {
       // This is an existing grouped tab that changed URL - consider regrouping
-      // Add a small delay to allow the page to fully load
+      // Add a delay to allow the page to fully load and avoid regrouping during redirects
       setTimeout(() => {
-        regroupExistingTab(tab);
-      }, 2000); // 2 second delay to allow page content to load
+        // Get the updated tab state before regrouping
+        chrome.tabs.get(tabId).then(updatedTab => {
+          // Only regroup if the tab is still grouped and URL is stable
+          if (updatedTab.groupId !== -1 && updatedTab.url === tab.url) {
+            regroupExistingTab(updatedTab);
+          }
+        }).catch(error => {
+          // Tab might have been closed
+          console.log(`Tab ${tabId} no longer exists for regrouping`);
+        });
+      }, 3000); // 3 second delay to allow page content to load and avoid redirects
     }
   }
 });
