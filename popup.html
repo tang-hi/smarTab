@@ -1,107 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
-
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tab Organizer</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <style>
-        body {
-            width: 320px;
-            padding: 16px;
-            margin: 0;
-            font-family: system-ui, -apple-system, sans-serif;
-        }
+    <title>SmarTab</title>
+    <link rel="stylesheet" href="styles/main.css" />
+  </head>
 
-        .header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 16px;
-        }
+  <body class="popup">
+    <div class="popup-shell">
+      <header class="brand">
+        <div class="brand-left">
+          <img src="images/128.png" alt="SmarTab" class="brand-logo" />
+          <div>
+            <div class="brand-name">SmarTab</div>
+            <div class="brand-tagline">AI tab curation, instantly</div>
+          </div>
+        </div>
+        <a class="btn btn-ghost btn-icon" href="settings.html" aria-label="Open settings" data-open-settings>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+            <path
+              d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.04.04a2 2 0 1 1-2.83 2.83l-.04-.04A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .26 1.7 1.7 0 0 0-.86 1.5V21a2 2 0 1 1-4 0v-.06a1.7 1.7 0 0 0-.86-1.5 1.7 1.7 0 0 0-1-.26 1.7 1.7 0 0 0-1.86.34l-.04.04a2 2 0 1 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.26-1 1.7 1.7 0 0 0-1.5-.86H2a2 2 0 1 1 0-4h.06a1.7 1.7 0 0 0 1.5-.86 1.7 1.7 0 0 0 .26-1 1.7 1.7 0 0 0-.34-1.86l-.04-.04A2 2 0 1 1 6.27 2.4l.04.04A1.7 1.7 0 0 0 8.2 2.6a1.7 1.7 0 0 0 1-.26A1.7 1.7 0 0 0 10.06.84V.5a2 2 0 1 1 4 0v.06a1.7 1.7 0 0 0 .86 1.5 1.7 1.7 0 0 0 1 .26 1.7 1.7 0 0 0 1.86-.34l.04-.04A2 2 0 1 1 21.6 6.27l-.04.04A1.7 1.7 0 0 0 21.4 8.2a1.7 1.7 0 0 0 .26 1 1.7 1.7 0 0 0 1.5.86H23.5a2 2 0 1 1 0 4h-.06a1.7 1.7 0 0 0-1.5.86 1.7 1.7 0 0 0-.26 1Z"
+            />
+          </svg>
+        </a>
+      </header>
 
-        .header img {
-            width: 24px;
-            height: 24px;
-            margin-right: 8px;
-        }
-
-        .header h1 {
-            font-size: 18px;
-            margin: 0;
-            color: var(--text-color);
-        }
-
-        .stats {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        .stat-card {
-            text-align: center;
-            padding: 12px;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--primary-color);
-        }
-
-        .stat-label {
-            font-size: 12px;
-            color: #6b7280;
-        }
-
-        .actions {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        #groupTabs {
-            width: 100%;
-        }
-
-        .settings-link {
-            font-size: 12px;
-            color: var(--primary-color);
-            text-decoration: none;
-            display: block;
-            text-align: center;
-            margin-top: 16px;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="header">
-        <img src="images/128.png" alt="SmarTab">
-        <h1>SmarTab</h1>
-    </div>
-
-    <div class="stats">
-        <div class="card stat-card">
+      <section class="card" style="--delay: 0.05s">
+        <div class="hero-stats">
+          <div class="stat">
             <div class="stat-value" id="tabCount">0</div>
-            <div class="stat-label">Open Tabs</div>
-        </div>
-        <div class="card stat-card">
+            <div class="stat-label">Tabs ready</div>
+          </div>
+          <div class="stat">
             <div class="stat-value" id="groupCount">0</div>
-            <div class="stat-label">Groups</div>
+            <div class="stat-label">Groups live</div>
+          </div>
         </div>
-    </div>
-
-    <div class="actions">
-        <button id="groupButton" class="btn btn-primary">
-            Group Tabs
+        <button id="groupButton" class="btn btn-primary" type="button">
+          <span class="btn-text">Group tabs</span>
+          <span class="btn-spinner" aria-hidden="true"></span>
         </button>
+        <div id="statusMessage" class="status-message" role="status"></div>
+      </section>
+
+      <section class="card search" style="--delay: 0.12s">
+        <div class="search-header">
+          <h2>Find a tab</h2>
+          <span id="searchMeta" class="search-meta">Loading...</span>
+        </div>
+        <div class="search-input">
+          <input id="tabSearch" type="text" placeholder="Search title or URL" />
+          <span class="search-hint">/</span>
+        </div>
+        <ul id="searchResults" class="search-results"></ul>
+      </section>
+
+      <section class="card settings-callout" style="--delay: 0.2s">
+        <div class="callout-top">
+          <div>
+            <h2>Customize in Settings</h2>
+            <p>Choose provider + model, set auto-grouping, and tune tab filters.</p>
+          </div>
+          <a class="btn btn-secondary" href="settings.html" data-open-settings>Open Settings</a>
+        </div>
+        <div class="callout-tags">
+          <span class="tag">AI Provider</span>
+          <span class="tag">Automation</span>
+          <span class="tag">Tab Filters</span>
+          <span class="tag">Grouping Rules</span>
+        </div>
+      </section>
     </div>
 
-    <a href="settings.html" class="settings-link">Settings</a>
     <script src="popup.js" type="module"></script>
-</body>
-
+  </body>
 </html>

@@ -1,301 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmarTab Settings</title>
+    <link rel="stylesheet" href="styles/main.css" />
+  </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <link rel="stylesheet" href="styles/main.css">
-    <style>
-        body {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 32px 48px;
-            font-family: system-ui, -apple-system, sans-serif;
-            color: var(--text-color);
-            min-width: 600px;
-        }
-
-        .header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 40px;
-            gap: 12px;
-        }
-
-        .header img {
-            width: 32px;
-            height: 32px;
-            margin-right: 12px;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            margin: 0;
-        }
-
-        .back-button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: var(--radius-sm);
-            color: var(--text-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .back-button:hover {
-            background-color: var(--hover-color);
-        }
-
-        .back-button svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .section {
-            margin-bottom: 32px;
-        }
-
-        .section h2 {
-            font-size: 18px;
-            margin-bottom: 16px;
-        }
-
-        .setting-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 24px;
-            border-bottom: 1px solid var(--border-color);
-            gap: 32px;
-        }
-
-        .setting-label {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-width: 300px;
-        }
-
-        .setting-description {
-            font-size: 14px;
-            color: #6b7280;
-            margin-top: 8px;
-            line-height: 1.5;
-            max-width: 500px;
-        }
-
-        .toggle {
-            position: relative;
-            width: 44px;
-            height: 24px;
-        }
-
-        .toggle input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #e5e7eb;
-            transition: .4s;
-            border-radius: 24px;
-        }
-
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 2px;
-            bottom: 2px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .toggle-slider {
-            background-color: var(--primary-color);
-        }
-
-        input:checked + .toggle-slider:before {
-            transform: translateX(20px);
-        }
-
-        input[type="number"] {
-            width: 80px;
-            padding: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-        }
-
-        textarea {
-            width: 100%;
-            min-height: 80px;
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            font-family: inherit;
-            resize: vertical;
-            line-height: 1.5;
-        }
-
-        .setting-row.full-width {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 16px;
-        }
-
-        .setting-row.full-width .setting-label {
-            margin-bottom: 8px;
-        }
-
-        input[type="password"] {
-            width: 300px;
-            padding: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-sm);
-            font-family: inherit;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="header">
-        <button class="back-button" id="backButton">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
+  <body class="settings">
+    <div class="settings-shell">
+      <header class="settings-header">
+        <button class="btn btn-ghost btn-icon" id="backButton" aria-label="Back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </button>
-        <img src="images/128.png" alt="SmarTab">
-        <h1>Settings</h1>
-    </div>
+        <div class="settings-title">
+          <img src="images/128.png" alt="SmarTab" />
+          <div>
+            <h1>Settings</h1>
+            <p>Direct API access only. No proxy, no relay, just your provider.</p>
+          </div>
+        </div>
+      </header>
 
-    <div class="card section">
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Custom Gemini API Key</span>
-                <span class="setting-description">Use your own Gemini API key for faster responses (optional)</span>
-            </div>
-            <input type="password" id="geminiApiKey" placeholder="Enter API key">
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Auto-collapse other groups</span>
-                <span class="setting-description">Automatically collapse other tab groups when switching between them</span>
-            </div>
-            <label class="toggle">
-                <input type="checkbox" id="closeOtherGroups">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Auto-group new tabs</span>
-                <span class="setting-description">Automatically group new tabs after 10 seconds of opening</span>
-            </div>
-            <label class="toggle">
-                <input type="checkbox" id="autoGroupNewTabs">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Auto-regroup tabs on navigation</span>
-                <span class="setting-description">Automatically re-evaluate group membership when tabs navigate to different content</span>
-            </div>
-            <label class="toggle">
-                <input type="checkbox" id="autoRegroupTabs">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Exclude pinned tabs</span>
-                <span class="setting-description">Keep pinned tabs out of automatic grouping</span>
-            </div>
-            <label class="toggle">
-                <input type="checkbox" id="excludePinnedTabs">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Only active tab</span>
-                <span class="setting-description">Only work with the currently active tab when grouping</span>
+      <div class="settings-grid">
+        <section class="card section" style="--delay: 0.05s">
+          <h2>AI Provider</h2>
+          <p class="section-desc">Pick your provider, model, and API key to power grouping.</p>
+          <div class="field">
+            <label for="aiProvider">Provider</label>
+            <select id="aiProvider">
+              <option value="openai">OpenAI</option>
+              <option value="gemini">Gemini</option>
+              <option value="custom">Custom (OpenAI-compatible)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modelName">Model</label>
+            <select id="modelName" data-model-select></select>
+            <input
+              type="text"
+              id="modelNameCustom"
+              class="is-hidden"
+              placeholder="e.g. openrouter/auto"
+            />
+            <div id="modelHint" class="field-hint"></div>
+          </div>
+          <div class="field">
+            <label for="apiKey">API key</label>
+            <input type="password" id="apiKey" placeholder="Paste your API key" />
+            <div class="field-hint">Stored locally in Chrome sync storage.</div>
+          </div>
+          <div class="field is-hidden" id="customApiBaseUrlField">
+            <label for="customApiBaseUrl">API base URL</label>
+            <input
+              type="text"
+              id="customApiBaseUrl"
+              placeholder="https://openrouter.ai/api/v1"
+            />
+            <div class="field-hint">Provide the OpenAI-compatible base URL.</div>
+          </div>
+          <div class="security-note">Requests go directly to the provider you select.</div>
+        </section>
+
+        <section class="card section" style="--delay: 0.1s">
+          <h2>Automation</h2>
+          <p class="section-desc">Let SmarTab keep groups tidy while you browse.</p>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Auto-collapse other groups</span>
+              <small>Keep only the active group expanded.</small>
             </div>
             <label class="toggle">
-                <input type="checkbox" id="onlyIncludeActiveTab">
-                <span class="toggle-slider"></span>
+              <input type="checkbox" id="closeOtherGroups" />
+              <span class="toggle-slider"></span>
             </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Include grouped tabs</span>
-                <span class="setting-description">Include tabs that are already in a group</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Auto-group new tabs</span>
+              <small>Group fresh tabs after a short delay.</small>
             </div>
             <label class="toggle">
-                <input type="checkbox" id="includeGroupedTabs">
-                <span class="toggle-slider"></span>
+              <input type="checkbox" id="autoGroupNewTabs" />
+              <span class="toggle-slider"></span>
             </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Current window only</span>
-                <span class="setting-description">Only group tabs from the current window</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Auto-regroup on navigation</span>
+              <small>Re-check a tab when it moves to new content.</small>
             </div>
             <label class="toggle">
-                <input type="checkbox" id="currentWindowOnly">
-                <span class="toggle-slider"></span>
+              <input type="checkbox" id="autoRegroupTabs" />
+              <span class="toggle-slider"></span>
             </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Include frozen tabs</span>
-                <span class="setting-description">Include tabs that are frozen/discarded</span>
+          </div>
+        </section>
+
+        <section class="card section" style="--delay: 0.15s">
+          <h2>Tab Selection</h2>
+          <p class="section-desc">Control which tabs participate in grouping.</p>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Only active tab</span>
+              <small>Limit grouping to the focused tab.</small>
             </div>
             <label class="toggle">
-                <input type="checkbox" id="includeFrozenTabs">
-                <span class="toggle-slider"></span>
+              <input type="checkbox" id="onlyIncludeActiveTab" />
+              <span class="toggle-slider"></span>
             </label>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Maximum tabs per group</span>
-                <span class="setting-description">Limit the number of tabs in each group</span>
-            </div>
-            <input type="number" id="maxTabsPerGroup" min="2" max="20" value="8">
-        </div>
-        <div class="setting-row full-width">
-            <div class="setting-label">
-                <span>Custom Grouping Instructions</span>
-                <span class="setting-description">Add specific instructions for how you want your tabs to be grouped (optional)</span>
-            </div>
-            <textarea id="customGroupingInstructions" placeholder="Example: Group development documentation separately from tutorial sites&#10;Keep shopping sites in their own group&#10;Put all video streaming sites together"></textarea>
-        </div>
-        <div class="setting-row">
-            <div class="setting-label">
-                <span>Use advanced grouping</span>
-                <span class="setting-description">Use more accurate (but slower) grouping algorithm, better for complex tab collections</span>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Include grouped tabs</span>
+              <small>Ungroup and regroup existing groups.</small>
             </div>
             <label class="toggle">
-                <input type="checkbox" id="useAdvancedGrouping">
-                <span class="toggle-slider"></span>
+              <input type="checkbox" id="includeGroupedTabs" />
+              <span class="toggle-slider"></span>
             </label>
-        </div>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Current window only</span>
+              <small>Ignore tabs in other windows.</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="currentWindowOnly" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Include frozen tabs</span>
+              <small>Include discarded/suspended tabs.</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="includeFrozenTabs" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Exclude pinned tabs</span>
+              <small>Keep pinned tabs out of automatic grouping.</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="excludePinnedTabs" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card section" style="--delay: 0.2s">
+          <h2>Grouping Rules</h2>
+          <p class="section-desc">Shape the clustering behavior to match your flow.</p>
+          <div class="field-inline">
+            <label for="maxTabsPerGroup">Maximum tabs per group</label>
+            <input type="number" id="maxTabsPerGroup" min="2" max="20" value="8" />
+          </div>
+          <div class="field">
+            <label for="customGroupingInstructions">Custom grouping instructions</label>
+            <textarea
+              id="customGroupingInstructions"
+              placeholder="Example: Separate work docs from tutorials. Group shopping sites together."
+            ></textarea>
+          </div>
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <span>Use advanced grouping</span>
+              <small>Higher accuracy, slower on big tab sets.</small>
+            </div>
+            <label class="toggle">
+              <input type="checkbox" id="useAdvancedGrouping" />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </section>
+      </div>
     </div>
 
     <script src="settings.js"></script>
-</body>
-
+  </body>
 </html>

@@ -106,9 +106,9 @@ function removeGroup(groupId) {
 }
 
 // ==========================================
-// Gemini API Integration
+// AI Provider Integration
 // ==========================================
-async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
+async function requestGroupingSuggestions(tabs, maxTabsPerGroup, customGroupingInstructions) {
   const tabsInfo = extractTabInfo(tabs);
   const systemPrompt = `You are a browser tab grouping assistant. Your task is to analyze the user's tabs and provide reasonable grouping suggestions.
 
@@ -173,7 +173,7 @@ async function sendToGemini(tabs, maxTabsPerGroup, customGroupingInstructions) {
       }
     },
   }
-  return await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_format);
+  return await makeStructuredRequest(systemPrompt, userPrompt, response_format, validateGroupingSuggestions);
 }
 
 async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGroupingInstructions) {
@@ -244,7 +244,7 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
       }
     },
   }
-  const groupingSuggestions = await makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_format);
+  const groupingSuggestions = await makeStructuredRequest(systemPrompt, userPrompt, response_format, validateGroupingSuggestions);
   console.log(groupingSuggestions);
 
   return convertTitlesToIndices(groupingSuggestions, tabs);
@@ -253,36 +253,116 @@ async function handleLargeBatchTabGrouping(tabs, maxTabsPerGroup, customGrouping
 // ==========================================
 // API Helper Functions
 // ==========================================
-async function makeGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, maxRetries = 3) {
-  let attempts = 0;
-  while (attempts < maxRetries) {
-    try {
-      const settings = await chrome.storage.sync.get(['geminiApiKey']);
-      const useCustomApi = settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
-      
-      const result = useCustomApi 
-        ? await makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, settings.geminiApiKey)
-        : await makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt);
-
-      if (validateGroupingSuggestions(result)) {
-        return result;
-      }
-      console.log(`Invalid response format on attempt ${attempts + 1}, retrying...`);
-    } catch (error) {
-      console.error(`Error on attempt ${attempts + 1}:`, error);
-    }
-    attempts++;
-    if (attempts < maxRetries) {
-      await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
-    }
+function getDefaultModelForProvider(provider) {
+  if (provider === 'openai') {
+    return 'gpt-4o-mini';
   }
-  throw new Error('Failed to get valid grouping suggestions after multiple attempts');
+  if (provider === 'gemini') {
+    return 'gemini-2.0-flash';
+  }
+  return '';
 }
 
-async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, response_schema, apiKey) {
-  console.log('Using custom Gemini');
-  console.log(response_schema);
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+function normalizeModel(provider, model) {
+  if (!model) {
+    return getDefaultModelForProvider(provider);
+  }
+  if (provider === 'custom') {
+    return model;
+  }
+  if (provider === 'gemini' && !model.startsWith('gemini-')) {
+    return getDefaultModelForProvider(provider);
+  }
+  if (provider === 'openai' && model.startsWith('gemini-')) {
+    return getDefaultModelForProvider(provider);
+  }
+  return model;
+}
+
+function normalizeBaseUrl(baseUrl) {
+  if (!baseUrl) {
+    return '';
+  }
+  let normalized = baseUrl.trim();
+  if (normalized.endsWith('/chat/completions')) {
+    normalized = normalized.slice(0, -'/chat/completions'.length);
+  }
+  if (normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
+async function getAIConfig() {
+  const settings = await chrome.storage.sync.get([
+    'aiProvider',
+    'modelName',
+    'openaiModelName',
+    'geminiModelName',
+    'customModelName',
+    'apiKey',
+    'geminiApiKey',
+    'customApiBaseUrl'
+  ]);
+  const provider = settings.aiProvider === 'openai' || settings.aiProvider === 'custom'
+    ? settings.aiProvider
+    : 'gemini';
+  const apiKey = (settings.apiKey || settings.geminiApiKey || '').trim();
+  const modelFromProvider = provider === 'openai'
+    ? settings.openaiModelName
+    : provider === 'gemini'
+      ? settings.geminiModelName
+      : settings.customModelName;
+  const model = normalizeModel(provider, modelFromProvider || settings.modelName);
+  const baseUrl = provider === 'custom'
+    ? normalizeBaseUrl(settings.customApiBaseUrl)
+    : 'https://api.openai.com/v1';
+  return { provider, apiKey, model, baseUrl };
+}
+
+async function makeStructuredRequest(systemPrompt, userPrompt, responseSchema, validate, maxRetries = 3) {
+  const config = await getAIConfig();
+
+  if (!config.apiKey) {
+    throw new Error(`Missing API key for ${config.provider}. Add one in Settings.`);
+  }
+  if (!config.model) {
+    throw new Error(`Missing model for ${config.provider}. Add one in Settings.`);
+  }
+  if (config.provider === 'custom' && !config.baseUrl) {
+    throw new Error('Missing API base URL for custom provider. Add one in Settings.');
+  }
+
+  let attempts = 0;
+  let lastError = null;
+
+  while (attempts < maxRetries) {
+    try {
+      const result = config.provider === 'openai' || config.provider === 'custom'
+        ? await requestOpenAI(config, systemPrompt, userPrompt)
+        : await requestGemini(config, systemPrompt, userPrompt, responseSchema);
+
+      if (!validate || validate(result)) {
+        return result;
+      }
+
+      lastError = new Error('Invalid response format from provider');
+    } catch (error) {
+      console.error(`Error on attempt ${attempts + 1}:`, error);
+      lastError = error;
+    }
+
+    attempts++;
+    if (attempts < maxRetries) {
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+    }
+  }
+
+  throw lastError || new Error('Failed to get valid response after multiple attempts');
+}
+
+async function requestGemini(config, systemPrompt, userPrompt, responseSchema) {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -293,7 +373,7 @@ async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, respo
       }],
       generationConfig: {
         response_mime_type: "application/json",
-        response_schema: response_schema
+        response_schema: responseSchema
       }
     })
   });
@@ -303,21 +383,28 @@ async function makeDirectGeminiRequest(tabsInfo, systemPrompt, userPrompt, respo
   }
 
   const data = await response.json();
-  return JSON.parse(data.candidates[0].content.parts[0].text);
+  const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!content) {
+    throw new Error('Empty response from Gemini');
+  }
+  return JSON.parse(content);
 }
 
-async function makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
-  console.log('Using proxy Gemini');
-  const response = await fetch('https://smartab.work:443/v1/chat/completions', {
+async function requestOpenAI(config, systemPrompt, userPrompt) {
+  const endpoint = `${config.baseUrl}/chat/completions`;
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.apiKey}`
     },
     body: JSON.stringify({
+      model: config.model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt }
       ],
+      temperature: 0.2,
       response_format: { type: "json_object" }
     })
   });
@@ -326,7 +413,12 @@ async function makeProxyGeminiRequest(tabsInfo, systemPrompt, userPrompt) {
     throw new Error(`HTTP error ${response.status}: ${await response.text()}`);
   }
 
-  return await response.json();
+  const data = await response.json();
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw new Error('Empty response from OpenAI');
+  }
+  return JSON.parse(content);
 }
 
 function convertTitlesToIndices(groupingSuggestions, tabs) {
@@ -507,8 +599,8 @@ async function findGroupingDecision(newTab, existingGroups) {
 }
 
 async function getGroupDecisionFromLLM(newTab, existingGroups) {
-  const settings = await chrome.storage.sync.get(['geminiApiKey', 'customGroupingInstructions']);
-  
+  const settings = await chrome.storage.sync.get(['customGroupingInstructions']);
+
   // Only provide group names and colors, no sample tabs
   const existingGroupsInfo = existingGroups.map(group => ({
     id: group.id,
@@ -564,45 +656,21 @@ async function getGroupDecisionFromLLM(newTab, existingGroups) {
   };
 
   try {
-    // Use existing Gemini request function
-    const useCustomApi = settings.geminiApiKey && settings.geminiApiKey.trim() !== '';
-    
-    let result;
-    if (useCustomApi) {
-      result = await makeDirectGeminiRequest(
-        [newTabInfo, existingGroupsInfo], 
-        systemPrompt, 
-        userPrompt, 
-        response_format, 
-        settings.geminiApiKey
-      );
-    } else {
-      // Use proxy for simpler API
-      const response = await fetch('https://smartab.work:443/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          response_format: { type: "json_object" }
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}`);
+    const result = await makeStructuredRequest(
+      systemPrompt,
+      userPrompt,
+      response_format,
+      (payload) => {
+        if (!payload || typeof payload.create_new_group !== 'boolean') {
+          return false;
+        }
+        const hasReasoning = typeof payload.reasoning === 'string';
+        const hasName = typeof payload.suggested_name === 'string';
+        const hasColor = typeof payload.suggested_color === 'string';
+        const hasTarget = payload.target_group_id === null || typeof payload.target_group_id === 'number';
+        return hasReasoning && hasName && hasColor && hasTarget;
       }
-
-      result = await response.json();
-    }
-
-    // Validate result has necessary fields
-    if (!result || typeof result.create_new_group !== 'boolean') {
-      throw new Error('Invalid response format from LLM');
-    }
+    );
 
     return result;
   } catch (error) {
@@ -631,14 +699,14 @@ async function createNewGroupForTab(tab, suggestedName = null, suggestedColor = 
       return;
     }
     
-    // Otherwise, use our existing LLM grouping for better suggestions
+    // Otherwise, use the LLM grouping for better suggestions
     try {
-      // Use the existing sendToGemini function with a single tab
+      // Use the existing grouping suggestions with a single tab
       const settings = await chrome.storage.sync.get(['maxTabsPerGroup', 'customGroupingInstructions']);
       const maxTabsPerGroup = settings.maxTabsPerGroup ?? 10;
       const customGroupingInstructions = settings.customGroupingInstructions ?? "";
       
-      const suggestions = await sendToGemini([tab], maxTabsPerGroup, customGroupingInstructions);
+      const suggestions = await requestGroupingSuggestions([tab], maxTabsPerGroup, customGroupingInstructions);
       
       if (suggestions.groups && suggestions.groups.length > 0) {
         // Create the group with the suggested name and color
@@ -858,7 +926,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // Choose handler based on setting or tab count
       const useAdvanced = settings.useAdvancedGrouping || filteredTabs.length >= 30;
-      const handler = useAdvanced ? handleLargeBatchTabGrouping : sendToGemini;
+      const handler = useAdvanced ? handleLargeBatchTabGrouping : requestGroupingSuggestions;
 
       console.log(`Handling grouping suggestions: ${filteredTabs.length} tabs, using ${useAdvanced ? 'advanced' : 'standard'} mode`);
 

@@ -1,20 +1,117 @@
 console.log('Popup script loaded');
 
-async function getTabs() {
+const elements = {
+    tabCount: document.getElementById('tabCount'),
+    groupCount: document.getElementById('groupCount'),
+    groupButton: document.getElementById('groupButton'),
+    statusMessage: document.getElementById('statusMessage'),
+    searchInput: document.getElementById('tabSearch'),
+    searchResults: document.getElementById('searchResults'),
+    searchMeta: document.getElementById('searchMeta')
+};
+
+let cachedTabs = [];
+let searchTabs = [];
+
+function setStatus(message, type = '') {
+    elements.statusMessage.textContent = message;
+    if (type) {
+        elements.statusMessage.dataset.type = type;
+    } else {
+        elements.statusMessage.removeAttribute('data-type');
+    }
+}
+
+function getTabSubtitle(tab) {
+    if (!tab.url) return 'No URL';
+    try {
+        const parsed = new URL(tab.url);
+        const path = parsed.pathname && parsed.pathname !== '/' ? parsed.pathname : '';
+        return `${parsed.hostname}${path}`;
+    } catch (error) {
+        return tab.url;
+    }
+}
+
+function renderSearchResults(tabs, metaText) {
+    elements.searchResults.innerHTML = '';
+    elements.searchMeta.textContent = metaText;
+
+    if (!tabs.length) {
+        const empty = document.createElement('li');
+        empty.className = 'empty-state';
+        empty.textContent = 'No matching tabs yet.';
+        elements.searchResults.appendChild(empty);
+        return;
+    }
+
+    const maxResults = 6;
+    const results = tabs.slice(0, maxResults);
+    results.forEach(tab => {
+        const listItem = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'result-item';
+        const title = document.createElement('span');
+        title.className = 'result-title';
+        title.textContent = tab.title || 'Untitled tab';
+        const subtitle = document.createElement('span');
+        subtitle.className = 'result-url';
+        subtitle.textContent = getTabSubtitle(tab);
+        button.appendChild(title);
+        button.appendChild(subtitle);
+        button.addEventListener('click', () => {
+            chrome.tabs.update(tab.id, { active: true });
+        });
+        listItem.appendChild(button);
+        elements.searchResults.appendChild(listItem);
+    });
+
+    if (tabs.length > maxResults) {
+        const remaining = document.createElement('li');
+        remaining.className = 'empty-state';
+        remaining.textContent = `Showing ${maxResults} of ${tabs.length} matches.`;
+        elements.searchResults.appendChild(remaining);
+    }
+}
+
+function filterTabs(query) {
+    const trimmed = query.trim().toLowerCase();
+    if (!trimmed) {
+        const recentTabs = [...searchTabs]
+            .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))
+            .slice(0, 6);
+        renderSearchResults(recentTabs, `Recent tabs - ${searchTabs.length} total`);
+        return;
+    }
+
+    const matches = searchTabs.filter(tab => {
+        const title = (tab.title || '').toLowerCase();
+        const url = (tab.url || '').toLowerCase();
+        return title.includes(trimmed) || url.includes(trimmed);
+    });
+    renderSearchResults(matches, `${matches.length} match${matches.length === 1 ? '' : 'es'}`);
+}
+
+async function loadTabs() {
     const settings = await chrome.storage.sync.get([
-        'onlyIncludeActiveTab', // Changed from includeActiveTab
+        'onlyIncludeActiveTab',
         'includeGroupedTabs',
         'currentWindowOnly',
         'includeFrozenTabs'
     ]);
-    const queryOptions = {}
+
+    const queryOptions = {};
     if (settings.currentWindowOnly) {
-        queryOptions['currentWindow'] = true;
+        queryOptions.currentWindow = true;
     }
+
+    const allTabs = await chrome.tabs.query({});
+    searchTabs = allTabs;
+    filterTabs(elements.searchInput.value || '');
 
     let tabs = await chrome.tabs.query(queryOptions);
 
-    // Apply filters based on settings
     tabs = tabs.filter(tab => {
         if (settings.onlyIncludeActiveTab && !tab.active) return false;
         if (!settings.includeGroupedTabs && tab.groupId !== -1) return false;
@@ -22,23 +119,28 @@ async function getTabs() {
         return true;
     });
 
-
-    const collator = new Intl.Collator();
-
-    tabs.sort((a, b) => collator.compare(a.title, b.title));
+    cachedTabs = tabs;
 
     const groups = await chrome.tabGroups.query({});
+    elements.tabCount.textContent = tabs.length;
+    elements.groupCount.textContent = groups.length;
 
-    // set group Number and Tab Number
-    const tabCount = document.getElementById('tabCount');
-    tabCount.innerText = tabs.length;
-    const groupCount = document.getElementById('groupCount');
-    groupCount.innerText = groups.length;
+    if (!searchTabs.length) {
+        searchTabs = tabs;
+        filterTabs(elements.searchInput.value || '');
+    }
 
-    const groupButton = document.getElementById('groupButton');
-    groupButton.onclick = async () => {
+    elements.groupButton.onclick = async () => {
         try {
-            groupButton.classList.add('loading');
+            if (!tabs.length) {
+                setStatus('No tabs to group with the current filters.', 'error');
+                return;
+            }
+
+            elements.groupButton.classList.add('loading');
+            elements.groupButton.disabled = true;
+            setStatus('');
+
             if (settings.includeGroupedTabs) {
                 await removeExistingGroups();
             }
@@ -47,28 +149,30 @@ async function getTabs() {
                 const maxTabsPerGroup = result.maxTabsPerGroup ?? 10;
                 const customGroupingInstructions = result.customGroupingInstructions ?? "";
 
-                // Send message to background script to get grouping suggestions
                 chrome.runtime.sendMessage({
-                    action: "getGroupingSuggestions",
+                    action: 'getGroupingSuggestions',
                     tabs: tabs,
                     maxTabsPerGroup: maxTabsPerGroup,
                     customGroupingInstructions: customGroupingInstructions
-                },
-                    function (response) {
-                        if (response && response.groupingSuggestions) {
-                            console.log("LLM Suggestions:", response.groupingSuggestions);
-                            createTabGroups(tabs, response.groupingSuggestions);
-                        } else {
-                            console.error("Error getting grouping suggestions from background script");
-                        }
-                        groupButton.classList.remove('loading');
-                    });
+                }, (response) => {
+                    if (response && response.groupingSuggestions) {
+                        console.log('LLM Suggestions:', response.groupingSuggestions);
+                        createTabGroups(tabs, response.groupingSuggestions);
+                        setStatus('Groups created. Take a look at your tab bar.', 'success');
+                    } else if (response && response.error) {
+                        setStatus(response.error, 'error');
+                    } else {
+                        setStatus('Could not get grouping suggestions.', 'error');
+                    }
+                    elements.groupButton.classList.remove('loading');
+                    elements.groupButton.disabled = false;
+                });
             });
-
-
         } catch (error) {
             console.error('Error grouping tabs:', error);
-            groupButton.classList.remove('loading');
+            setStatus('Grouping failed. Check settings and API key.', 'error');
+            elements.groupButton.classList.remove('loading');
+            elements.groupButton.disabled = false;
         }
     };
 
@@ -103,7 +207,7 @@ async function createTabGroups(tabs, groupingSuggestions) {
     const activeTabId = activeTab[0]?.id;
 
     for (const group of groupingSuggestions.groups) {
-        const tabIndices = group.tab_indices;
+        let tabIndices = group.tab_indices;
         // Qwen may return the array of tab indices in string format
         // [1,2,3] -> '[1,2,3]'
         if (typeof tabIndices === 'string') {
@@ -126,4 +230,15 @@ async function createTabGroups(tabs, groupingSuggestions) {
     }
 }
 
-getTabs().catch(console.error);
+elements.searchInput.addEventListener('input', (event) => {
+    filterTabs(event.target.value);
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === '/' && document.activeElement !== elements.searchInput) {
+        event.preventDefault();
+        elements.searchInput.focus();
+    }
+});
+
+loadTabs().catch(console.error);
