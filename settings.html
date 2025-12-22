@@ -186,6 +186,63 @@
             </label>
           </div>
         </section>
+
+        <section class="card section" id="sessions" style="--delay: 0.25s">
+          <h2>Sessions</h2>
+          <p class="section-desc">Save and restore your browser sessions.</p>
+          <div id="sessionsListSettings" class="sessions-list-settings">
+            <p class="empty-hint">No saved sessions yet.</p>
+          </div>
+        </section>
+
+        <section class="card section" id="templates" style="--delay: 0.3s">
+          <h2>Grouping Templates</h2>
+          <p class="section-desc">Create rule-based grouping without AI.</p>
+          <div id="templatesListSettings" class="templates-list-settings">
+            <p class="empty-hint">No templates yet. Save your current groups as a template from the popup.</p>
+          </div>
+        </section>
+
+        <section class="card section" style="--delay: 0.35s">
+          <h2>Advanced</h2>
+          <p class="section-desc">Fine-tune timing and behavior settings.</p>
+          <div class="field-inline">
+            <label for="autoGroupDelay">Auto-group delay (seconds)</label>
+            <input type="number" id="autoGroupDelay" min="5" max="60" value="15" />
+          </div>
+          <div class="field-inline">
+            <label for="regroupDelay">Regroup delay (seconds)</label>
+            <input type="number" id="regroupDelay" min="1" max="30" value="3" />
+          </div>
+          <div class="field-inline">
+            <label for="undoHistorySize">Undo history size</label>
+            <input type="number" id="undoHistorySize" min="1" max="50" value="10" />
+          </div>
+        </section>
+
+        <section class="card section" style="--delay: 0.4s">
+          <h2>Keyboard Shortcuts</h2>
+          <p class="section-desc">Quick actions from anywhere in Chrome.</p>
+          <div class="shortcut-row">
+            <div class="shortcut-info">
+              <span class="shortcut-name">Group all tabs</span>
+              <span class="shortcut-desc">Trigger AI grouping</span>
+            </div>
+            <kbd>Ctrl+Shift+G</kbd>
+          </div>
+          <div class="shortcut-row">
+            <div class="shortcut-info">
+              <span class="shortcut-name">Save session</span>
+              <span class="shortcut-desc">Save current tabs as session</span>
+            </div>
+            <kbd>Ctrl+Shift+S</kbd>
+          </div>
+          <p class="field-hint" style="margin-top: 12px;">
+            <a href="chrome://extensions/shortcuts" id="openShortcutsLink" style="color: var(--accent);">
+              Customize shortcuts in Chrome settings
+            </a>
+          </p>
+        </section>
       </div>
     </div>
 

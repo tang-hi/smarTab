@@ -649,6 +649,271 @@ a {
   }
 }
 
+/* Sessions Card */
+.sessions-card h2,
+.templates-card h2 {
+  font-size: 16px;
+}
+
+.sessions-header,
+.templates-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.sessions-actions,
+.templates-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.sessions-quick-list {
+  display: grid;
+  gap: 8px;
+}
+
+.session-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.session-item:hover {
+  border-color: rgba(15, 118, 110, 0.25);
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.session-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.session-meta {
+  font-size: 11px;
+  color: var(--muted-2);
+  margin-top: 2px;
+}
+
+/* Templates Card */
+.templates-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.template-chip {
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--accent-strong);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.template-chip:hover {
+  background: rgba(15, 118, 110, 0.15);
+  transform: translateY(-1px);
+}
+
+.template-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-hint {
+  font-size: 12px;
+  color: var(--muted-2);
+  margin: 0;
+}
+
+/* Undo History */
+.undo-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.undo-history-dropdown {
+  margin-top: 10px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.undo-history-dropdown.hidden {
+  display: none;
+}
+
+.undo-history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.undo-history-item {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  text-align: left;
+}
+
+.undo-history-item:last-child {
+  border-bottom: none;
+}
+
+.undo-history-item:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.undo-item-text {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.undo-item-time {
+  font-size: 11px;
+  color: var(--muted-2);
+}
+
+.undo-history-empty {
+  padding: 12px;
+  font-size: 12px;
+  color: var(--muted-2);
+  text-align: center;
+}
+
+/* Advanced Settings */
+.shortcuts-section {
+  margin-top: 16px;
+}
+
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-row:last-child {
+  border-bottom: none;
+}
+
+.shortcut-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.shortcut-desc {
+  font-size: 11px;
+  color: var(--muted-2);
+}
+
+kbd {
+  background: rgba(15, 23, 42, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--ink);
+}
+
+/* Session List in Settings */
+.session-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
+.session-list-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-list-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.session-list-meta {
+  font-size: 11px;
+  color: var(--muted-2);
+}
+
+.session-list-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Template Editor */
+.template-list-item {
+  background: var(--surface-2);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.template-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.template-list-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.template-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.template-group-chip {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--accent-strong);
+}
+
 @media (max-width: 720px) {
   body.settings {
     padding: 0;

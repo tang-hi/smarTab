@@ -9,8 +9,15 @@ const elements = {
     searchResults: document.getElementById('searchResults'),
     searchMeta: document.getElementById('searchMeta'),
     undoAutoGroup: document.getElementById('undoAutoGroup'),
+    undoHistoryBtn: document.getElementById('undoHistoryBtn'),
+    undoHistoryDropdown: document.getElementById('undoHistoryDropdown'),
+    undoHistoryList: document.getElementById('undoHistoryList'),
     autoGroupSummary: document.getElementById('autoGroupSummary'),
-    autoGroupReason: document.getElementById('autoGroupReason')
+    autoGroupReason: document.getElementById('autoGroupReason'),
+    saveSessionBtn: document.getElementById('saveSessionBtn'),
+    sessionsList: document.getElementById('sessionsList'),
+    saveTemplateBtn: document.getElementById('saveTemplateBtn'),
+    templatesList: document.getElementById('templatesList')
 };
 
 let cachedTabs = [];
@@ -58,6 +65,208 @@ async function loadAutoGroupAction() {
     renderAutoGroupAction(result.lastAutoGroupAction || null);
 }
 
+// ==========================================
+// Undo History
+// ==========================================
+async function loadUndoHistory() {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getUndoHistory' }, (response) => {
+            resolve(response?.history || []);
+        });
+    });
+}
+
+function renderUndoHistory(history) {
+    elements.undoHistoryList.innerHTML = '';
+
+    if (!history || history.length === 0) {
+        const empty = document.createElement('li');
+        empty.className = 'undo-history-empty';
+        empty.textContent = 'No undo history.';
+        elements.undoHistoryList.appendChild(empty);
+        return;
+    }
+
+    history.slice(0, 5).forEach((action) => {
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'undo-history-item';
+
+        const actionText = action.createdNewGroup ? 'Created' : 'Added to';
+        const groupLabel = action.groupTitle || 'group';
+        const timeAgo = formatTimeAgo(action.timestamp);
+
+        btn.innerHTML = `
+            <span class="undo-item-text">${actionText} "${groupLabel}"</span>
+            <span class="undo-item-time">${timeAgo}</span>
+        `;
+
+        btn.addEventListener('click', () => {
+            chrome.runtime.sendMessage({ action: 'undoAutoGroup', actionId: action.id }, (response) => {
+                if (response?.ok) {
+                    setStatus('Action undone.', 'success');
+                    loadUndoHistory().then(renderUndoHistory);
+                    loadAutoGroupAction();
+                } else {
+                    setStatus(response?.error || 'Undo failed.', 'error');
+                }
+            });
+        });
+
+        li.appendChild(btn);
+        elements.undoHistoryList.appendChild(li);
+    });
+}
+
+elements.undoHistoryBtn?.addEventListener('click', async () => {
+    const isHidden = elements.undoHistoryDropdown.classList.contains('hidden');
+    if (isHidden) {
+        const history = await loadUndoHistory();
+        renderUndoHistory(history);
+        elements.undoHistoryDropdown.classList.remove('hidden');
+    } else {
+        elements.undoHistoryDropdown.classList.add('hidden');
+    }
+});
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    if (!elements.undoHistoryDropdown?.contains(e.target) &&
+        !elements.undoHistoryBtn?.contains(e.target)) {
+        elements.undoHistoryDropdown?.classList.add('hidden');
+    }
+});
+
+// ==========================================
+// Sessions
+// ==========================================
+async function loadSessions() {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getSessions' }, (response) => {
+            resolve(response?.sessions || []);
+        });
+    });
+}
+
+function renderSessions(sessions) {
+    elements.sessionsList.innerHTML = '';
+
+    if (!sessions || sessions.length === 0) {
+        elements.sessionsList.innerHTML = '<p class="empty-hint">No saved sessions yet.</p>';
+        return;
+    }
+
+    // Show last 3 sessions
+    sessions.slice(0, 3).forEach((session) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'session-item';
+
+        const timeAgo = formatTimeAgo(session.createdAt);
+
+        btn.innerHTML = `
+            <span class="session-name">${session.name}</span>
+            <span class="session-meta">${session.tabCount} tabs · ${timeAgo}</span>
+        `;
+
+        btn.addEventListener('click', () => {
+            btn.disabled = true;
+            chrome.runtime.sendMessage({
+                action: 'restoreSession',
+                sessionId: session.id,
+                inNewWindow: false
+            }, (response) => {
+                btn.disabled = false;
+                if (response?.ok) {
+                    setStatus(`Restored ${response.tabCount} tabs.`, 'success');
+                } else {
+                    setStatus(response?.error || 'Restore failed.', 'error');
+                }
+            });
+        });
+
+        elements.sessionsList.appendChild(btn);
+    });
+}
+
+elements.saveSessionBtn?.addEventListener('click', () => {
+    elements.saveSessionBtn.disabled = true;
+    chrome.runtime.sendMessage({ action: 'saveSession' }, (response) => {
+        elements.saveSessionBtn.disabled = false;
+        if (response?.ok) {
+            setStatus('Session saved!', 'success');
+            loadSessions().then(renderSessions);
+        } else {
+            setStatus(response?.error || 'Save failed.', 'error');
+        }
+    });
+});
+
+// ==========================================
+// Templates
+// ==========================================
+async function loadTemplates() {
+    return new Promise((resolve) => {
+        chrome.runtime.sendMessage({ action: 'getTemplates' }, (response) => {
+            resolve(response?.templates || []);
+        });
+    });
+}
+
+function renderTemplates(templates) {
+    elements.templatesList.innerHTML = '';
+
+    if (!templates || templates.length === 0) {
+        elements.templatesList.innerHTML = '<p class="empty-hint">No templates yet.</p>';
+        return;
+    }
+
+    templates.forEach((template) => {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'template-chip';
+        chip.textContent = template.name;
+
+        chip.addEventListener('click', () => {
+            chip.disabled = true;
+            chrome.runtime.sendMessage({
+                action: 'applyTemplate',
+                templateId: template.id
+            }, (response) => {
+                chip.disabled = false;
+                if (response?.ok) {
+                    setStatus(`Applied template, grouped ${response.groupedCount} tabs.`, 'success');
+                    loadTabs();
+                } else {
+                    setStatus(response?.error || 'Apply failed.', 'error');
+                }
+            });
+        });
+
+        elements.templatesList.appendChild(chip);
+    });
+}
+
+elements.saveTemplateBtn?.addEventListener('click', () => {
+    const name = prompt('Template name:', `Template ${new Date().toLocaleDateString()}`);
+    if (!name) return;
+
+    elements.saveTemplateBtn.disabled = true;
+    chrome.runtime.sendMessage({ action: 'saveCurrentAsTemplate', name }, (response) => {
+        elements.saveTemplateBtn.disabled = false;
+        if (response?.ok) {
+            setStatus('Template saved!', 'success');
+            loadTemplates().then(renderTemplates);
+        } else {
+            setStatus(response?.error || 'Save failed.', 'error');
+        }
+    });
+});
+
+// ==========================================
+// Search
+// ==========================================
 function getTabSubtitle(tab) {
     if (!tab.url) return 'No URL';
     try {
@@ -129,6 +338,9 @@ function filterTabs(query) {
     renderSearchResults(matches, `${matches.length} match${matches.length === 1 ? '' : 'es'}`);
 }
 
+// ==========================================
+// Main Tab Loading & Grouping
+// ==========================================
 async function loadTabs() {
     const settings = await chrome.storage.sync.get([
         'onlyIncludeActiveTab',
@@ -217,16 +429,13 @@ async function loadTabs() {
 
 async function removeExistingGroups() {
     try {
-        // Get all tabs
         const currentWindowOnly = await chrome.storage.sync.get('currentWindowOnly');
         const tabs = await chrome.tabs.query({ currentWindow: currentWindowOnly.currentWindowOnly ?? true });
 
-        // Get unique group IDs
         const groupIds = [...new Set(tabs
             .map(tab => tab.groupId)
-            .filter(id => id !== -1))]; // Filter out ungrouped tabs
+            .filter(id => id !== -1))];
 
-        // Ungroup all tabs in each group
         for (const groupId of groupIds) {
             const groupTabs = await chrome.tabs.query({ groupId });
             await chrome.tabs.ungroup(groupTabs.map(tab => tab.id));
@@ -236,16 +445,12 @@ async function removeExistingGroups() {
     }
 }
 
-
 async function createTabGroups(tabs, groupingSuggestions) {
-    // Get the active tab
     const activeTab = await chrome.tabs.query({ active: true, currentWindow: true });
     const activeTabId = activeTab[0]?.id;
 
     for (const group of groupingSuggestions.groups) {
         let tabIndices = group.tab_indices;
-        // Qwen may return the array of tab indices in string format
-        // [1,2,3] -> '[1,2,3]'
         if (typeof tabIndices === 'string') {
             tabIndices = JSON.parse(tabIndices);
         }
@@ -255,17 +460,19 @@ async function createTabGroups(tabs, groupingSuggestions) {
         }).filter(id => id !== null);
         const newGroup = await chrome.tabs.group({ tabIds });
 
-        // Check if active tab is in this group
         const isActiveTabInGroup = tabIds.includes(activeTabId);
 
         await chrome.tabGroups.update(newGroup, {
             title: group.group_name,
             color: group.group_color,
-            collapsed: !isActiveTabInGroup // Collapse if active tab is not in this group
+            collapsed: !isActiveTabInGroup
         });
     }
 }
 
+// ==========================================
+// Event Listeners
+// ==========================================
 elements.searchInput.addEventListener('input', (event) => {
     filterTabs(event.target.value);
 });
@@ -277,16 +484,13 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-loadTabs().catch(console.error);
-
-loadAutoGroupAction().catch(console.error);
-
 elements.undoAutoGroup.addEventListener('click', () => {
     elements.undoAutoGroup.disabled = true;
     chrome.runtime.sendMessage({ action: 'undoAutoGroup' }, (response) => {
         if (response && response.ok) {
             setStatus('Auto-group undone.', 'success');
             renderAutoGroupAction(null);
+            loadUndoHistory().then(renderUndoHistory);
             return;
         }
         const error = response?.error || 'Undo failed.';
@@ -299,3 +503,11 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== 'sync' || !changes.lastAutoGroupAction) return;
     renderAutoGroupAction(changes.lastAutoGroupAction.newValue || null);
 });
+
+// ==========================================
+// Initialize
+// ==========================================
+loadTabs().catch(console.error);
+loadAutoGroupAction().catch(console.error);
+loadSessions().then(renderSessions).catch(console.error);
+loadTemplates().then(renderTemplates).catch(console.error);

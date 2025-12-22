@@ -49,13 +49,49 @@
       <section class="card auto-group-card" style="--delay: 0.08s">
         <div class="auto-group-header">
           <h2>Auto-group update</h2>
-          <button id="undoAutoGroup" class="btn btn-secondary btn-sm" type="button">Undo</button>
+          <div class="undo-controls">
+            <button id="undoAutoGroup" class="btn btn-secondary btn-sm" type="button">Undo</button>
+            <button id="undoHistoryBtn" class="btn btn-ghost btn-sm btn-icon" type="button" title="Undo history">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <p id="autoGroupSummary" class="auto-group-summary">No recent auto-grouping yet.</p>
         <div id="autoGroupReason" class="auto-group-reason"></div>
+        <div id="undoHistoryDropdown" class="undo-history-dropdown hidden">
+          <ul id="undoHistoryList" class="undo-history-list"></ul>
+        </div>
       </section>
 
-      <section class="card search" style="--delay: 0.12s">
+      <section class="card sessions-card" style="--delay: 0.10s">
+        <div class="sessions-header">
+          <h2>Sessions</h2>
+          <div class="sessions-actions">
+            <button id="saveSessionBtn" class="btn btn-secondary btn-sm" type="button">Save</button>
+            <a href="settings.html#sessions" class="btn btn-ghost btn-sm" data-open-settings>Manage</a>
+          </div>
+        </div>
+        <div id="sessionsList" class="sessions-quick-list">
+          <p class="empty-hint">No saved sessions yet.</p>
+        </div>
+      </section>
+
+      <section class="card templates-card" style="--delay: 0.11s">
+        <div class="templates-header">
+          <h2>Templates</h2>
+          <div class="templates-actions">
+            <button id="saveTemplateBtn" class="btn btn-secondary btn-sm" type="button">Save current</button>
+            <a href="settings.html#templates" class="btn btn-ghost btn-sm" data-open-settings>Edit</a>
+          </div>
+        </div>
+        <div id="templatesList" class="templates-chips">
+          <p class="empty-hint">No templates yet.</p>
+        </div>
+      </section>
+
+      <section class="card search" style="--delay: 0.14s">
         <div class="search-header">
           <h2>Find a tab</h2>
           <span id="searchMeta" class="search-meta">Loading...</span>
@@ -67,7 +103,7 @@
         <ul id="searchResults" class="search-results"></ul>
       </section>
 
-      <section class="card settings-callout" style="--delay: 0.2s">
+      <section class="card settings-callout" style="--delay: 0.22s">
         <div class="callout-top">
           <div>
             <h2>Customize in Settings</h2>

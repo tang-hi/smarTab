@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "smartTab",
-  "version": "1.2",
-  "description": "Retrieves the current open tab and groups the tabs based on the model's response.",
+  "version": "1.3",
+  "description": "AI-powered browser tab grouping with session management and templates.",
   "permissions": [
     "tabs",
     "tabGroups",
     "storage"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_popup": "popup.html",
@@ -19,5 +20,21 @@
       "128": "images/128.png"
     }
   },
-  "options_page": "settings.html"
+  "options_page": "settings.html",
+  "commands": {
+    "group-tabs": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+G",
+        "mac": "Command+Shift+G"
+      },
+      "description": "Group all tabs using AI"
+    },
+    "save-session": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S",
+        "mac": "Command+Shift+S"
+      },
+      "description": "Save current session"
+    }
+  }
 }

@@ -19,7 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const useAdvancedGrouping = document.getElementById('useAdvancedGrouping');
     const autoGroupNewTabs = document.getElementById('autoGroupNewTabs');
     const autoRegroupTabs = document.getElementById('autoRegroupTabs');
-    const excludePinnedTabs = document.getElementById('excludePinnedTabs'); // Pinned tabs exclusion option
+    const excludePinnedTabs = document.getElementById('excludePinnedTabs');
+    const sessionsListSettings = document.getElementById('sessionsListSettings');
+    const templatesListSettings = document.getElementById('templatesListSettings');
+    const autoGroupDelay = document.getElementById('autoGroupDelay');
+    const regroupDelay = document.getElementById('regroupDelay');
+    const undoHistorySize = document.getElementById('undoHistorySize');
+    const openShortcutsLink = document.getElementById('openShortcutsLink');
 
     const MODEL_OPTIONS = {
         openai: [
@@ -338,4 +344,205 @@ document.addEventListener('DOMContentLoaded', () => {
     excludePinnedTabs.addEventListener('change', () => {
         chrome.storage.sync.set({ excludePinnedTabs: excludePinnedTabs.checked });
     });
+
+    // ==========================================
+    // Advanced Settings
+    // ==========================================
+    chrome.storage.sync.get(['delays', 'undoHistorySize'], (result) => {
+        const delays = result.delays || {};
+        autoGroupDelay.value = Math.round((delays.autoGroupFallback || 15000) / 1000);
+        regroupDelay.value = Math.round((delays.regroupDelay || 3000) / 1000);
+        undoHistorySize.value = result.undoHistorySize || 10;
+    });
+
+    autoGroupDelay.addEventListener('change', () => {
+        chrome.storage.sync.get(['delays'], (result) => {
+            const delays = result.delays || {};
+            delays.autoGroupFallback = parseInt(autoGroupDelay.value) * 1000;
+            chrome.storage.sync.set({ delays });
+        });
+    });
+
+    regroupDelay.addEventListener('change', () => {
+        chrome.storage.sync.get(['delays'], (result) => {
+            const delays = result.delays || {};
+            delays.regroupDelay = parseInt(regroupDelay.value) * 1000;
+            chrome.storage.sync.set({ delays });
+        });
+    });
+
+    undoHistorySize.addEventListener('change', () => {
+        chrome.storage.sync.set({ undoHistorySize: parseInt(undoHistorySize.value) });
+    });
+
+    // Open shortcuts link handler
+    openShortcutsLink?.addEventListener('click', (e) => {
+        e.preventDefault();
+        chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    });
+
+    // ==========================================
+    // Sessions Management
+    // ==========================================
+    function formatTimeAgo(timestamp) {
+        if (!timestamp) return '';
+        const diffMs = Date.now() - timestamp;
+        const diffMin = Math.floor(diffMs / 60000);
+        if (diffMin < 1) return 'just now';
+        if (diffMin < 60) return `${diffMin}m ago`;
+        const diffHours = Math.floor(diffMin / 60);
+        if (diffHours < 24) return `${diffHours}h ago`;
+        const diffDays = Math.floor(diffHours / 24);
+        return `${diffDays}d ago`;
+    }
+
+    function loadSessions() {
+        chrome.runtime.sendMessage({ action: 'getSessions' }, (response) => {
+            renderSessionsList(response?.sessions || []);
+        });
+    }
+
+    function renderSessionsList(sessions) {
+        sessionsListSettings.innerHTML = '';
+
+        if (!sessions || sessions.length === 0) {
+            sessionsListSettings.innerHTML = '<p class="empty-hint">No saved sessions yet.</p>';
+            return;
+        }
+
+        sessions.forEach((session) => {
+            const item = document.createElement('div');
+            item.className = 'session-list-item';
+
+            const info = document.createElement('div');
+            info.className = 'session-list-info';
+            info.innerHTML = `
+                <span class="session-list-name">${session.name}</span>
+                <span class="session-list-meta">${session.tabCount} tabs · ${session.groupCount} groups · ${formatTimeAgo(session.createdAt)}</span>
+            `;
+
+            const actions = document.createElement('div');
+            actions.className = 'session-list-actions';
+
+            const restoreBtn = document.createElement('button');
+            restoreBtn.className = 'btn btn-secondary btn-sm';
+            restoreBtn.textContent = 'Restore';
+            restoreBtn.addEventListener('click', () => {
+                restoreBtn.disabled = true;
+                chrome.runtime.sendMessage({
+                    action: 'restoreSession',
+                    sessionId: session.id,
+                    inNewWindow: true
+                }, (response) => {
+                    restoreBtn.disabled = false;
+                    if (!response?.ok) {
+                        alert(response?.error || 'Restore failed.');
+                    }
+                });
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-ghost btn-sm';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => {
+                if (!confirm(`Delete session "${session.name}"?`)) return;
+                chrome.runtime.sendMessage({
+                    action: 'deleteSession',
+                    sessionId: session.id
+                }, () => loadSessions());
+            });
+
+            actions.appendChild(restoreBtn);
+            actions.appendChild(deleteBtn);
+
+            item.appendChild(info);
+            item.appendChild(actions);
+            sessionsListSettings.appendChild(item);
+        });
+    }
+
+    // ==========================================
+    // Templates Management
+    // ==========================================
+    function loadTemplates() {
+        chrome.runtime.sendMessage({ action: 'getTemplates' }, (response) => {
+            renderTemplatesList(response?.templates || []);
+        });
+    }
+
+    function renderTemplatesList(templates) {
+        templatesListSettings.innerHTML = '';
+
+        if (!templates || templates.length === 0) {
+            templatesListSettings.innerHTML = '<p class="empty-hint">No templates yet. Save your current groups as a template from the popup.</p>';
+            return;
+        }
+
+        templates.forEach((template) => {
+            const item = document.createElement('div');
+            item.className = 'template-list-item';
+
+            const header = document.createElement('div');
+            header.className = 'template-list-header';
+
+            const name = document.createElement('span');
+            name.className = 'template-list-name';
+            name.textContent = template.name;
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn btn-ghost btn-sm';
+            deleteBtn.textContent = 'Delete';
+            deleteBtn.addEventListener('click', () => {
+                if (!confirm(`Delete template "${template.name}"?`)) return;
+                chrome.runtime.sendMessage({
+                    action: 'deleteTemplate',
+                    templateId: template.id
+                }, () => loadTemplates());
+            });
+
+            header.appendChild(name);
+            header.appendChild(deleteBtn);
+
+            const groups = document.createElement('div');
+            groups.className = 'template-groups';
+
+            (template.groups || []).forEach((group) => {
+                const chip = document.createElement('span');
+                chip.className = 'template-group-chip';
+                chip.style.backgroundColor = getColorBg(group.color);
+                chip.textContent = `${group.name} (${group.patterns?.length || 0} rules)`;
+                groups.appendChild(chip);
+            });
+
+            item.appendChild(header);
+            item.appendChild(groups);
+            templatesListSettings.appendChild(item);
+        });
+    }
+
+    function getColorBg(color) {
+        const colors = {
+            grey: 'rgba(100, 116, 139, 0.15)',
+            blue: 'rgba(59, 130, 246, 0.15)',
+            red: 'rgba(239, 68, 68, 0.15)',
+            yellow: 'rgba(234, 179, 8, 0.15)',
+            green: 'rgba(34, 197, 94, 0.15)',
+            pink: 'rgba(236, 72, 153, 0.15)',
+            purple: 'rgba(168, 85, 247, 0.15)',
+            cyan: 'rgba(6, 182, 212, 0.15)'
+        };
+        return colors[color] || colors.grey;
+    }
+
+    // Initial load
+    loadSessions();
+    loadTemplates();
+
+    // Handle hash navigation
+    if (window.location.hash) {
+        const target = document.querySelector(window.location.hash);
+        if (target) {
+            setTimeout(() => target.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+    }
 });
