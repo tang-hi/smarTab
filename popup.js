@@ -7,7 +7,10 @@ const elements = {
     statusMessage: document.getElementById('statusMessage'),
     searchInput: document.getElementById('tabSearch'),
     searchResults: document.getElementById('searchResults'),
-    searchMeta: document.getElementById('searchMeta')
+    searchMeta: document.getElementById('searchMeta'),
+    undoAutoGroup: document.getElementById('undoAutoGroup'),
+    autoGroupSummary: document.getElementById('autoGroupSummary'),
+    autoGroupReason: document.getElementById('autoGroupReason')
 };
 
 let cachedTabs = [];
@@ -20,6 +23,39 @@ function setStatus(message, type = '') {
     } else {
         elements.statusMessage.removeAttribute('data-type');
     }
+}
+
+function formatTimeAgo(timestamp) {
+    if (!timestamp) return '';
+    const diffMs = Date.now() - timestamp;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+}
+
+function renderAutoGroupAction(action) {
+    if (!action) {
+        elements.autoGroupSummary.textContent = 'No recent auto-grouping yet.';
+        elements.autoGroupReason.textContent = '';
+        elements.undoAutoGroup.disabled = true;
+        return;
+    }
+
+    const timeAgo = formatTimeAgo(action.timestamp);
+    const actionText = action.createdNewGroup ? 'Created new group' : 'Added to existing group';
+    const groupLabel = action.groupTitle ? `"${action.groupTitle}"` : 'a group';
+    elements.autoGroupSummary.textContent = `${actionText} ${groupLabel}${timeAgo ? ` · ${timeAgo}` : ''}`;
+    elements.autoGroupReason.textContent = action.reasoning ? `Reason: ${action.reasoning}` : '';
+    elements.undoAutoGroup.disabled = action.toGroupId === -1;
+}
+
+async function loadAutoGroupAction() {
+    const result = await chrome.storage.sync.get(['lastAutoGroupAction']);
+    renderAutoGroupAction(result.lastAutoGroupAction || null);
 }
 
 function getTabSubtitle(tab) {
@@ -242,3 +278,24 @@ document.addEventListener('keydown', (event) => {
 });
 
 loadTabs().catch(console.error);
+
+loadAutoGroupAction().catch(console.error);
+
+elements.undoAutoGroup.addEventListener('click', () => {
+    elements.undoAutoGroup.disabled = true;
+    chrome.runtime.sendMessage({ action: 'undoAutoGroup' }, (response) => {
+        if (response && response.ok) {
+            setStatus('Auto-group undone.', 'success');
+            renderAutoGroupAction(null);
+            return;
+        }
+        const error = response?.error || 'Undo failed.';
+        setStatus(error, 'error');
+        elements.undoAutoGroup.disabled = false;
+    });
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync' || !changes.lastAutoGroupAction) return;
+    renderAutoGroupAction(changes.lastAutoGroupAction.newValue || null);
+});

@@ -38,14 +38,21 @@
           </div>
           <div class="field">
             <label for="modelName">Model</label>
-            <select id="modelName" data-model-select></select>
-            <input
-              type="text"
-              id="modelNameCustom"
-              class="is-hidden"
-              placeholder="e.g. openrouter/auto"
-            />
+            <div class="field-row">
+              <select id="modelName" data-model-select></select>
+              <input
+                type="text"
+                id="modelNameCustom"
+                class="is-hidden"
+                placeholder="e.g. openrouter/auto"
+              />
+              <button class="btn btn-secondary" type="button" id="testConnectionButton">
+                <span class="btn-spinner"></span>
+                <span class="btn-text">Test connection</span>
+              </button>
+            </div>
             <div id="modelHint" class="field-hint"></div>
+            <div id="connectionStatus" class="field-hint connection-status"></div>
           </div>
           <div class="field">
             <label for="apiKey">API key</label>

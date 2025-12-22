@@ -486,53 +486,22 @@ async function handleNewTab(tab) {
     return;
   }
 
-  // Check if auto-grouping is enabled
-  const settings = await chrome.storage.sync.get([
-    'autoGroupNewTabs',
-    'excludePinnedTabs'
-  ]);
-  
+  const settings = await chrome.storage.sync.get(['autoGroupNewTabs']);
   if (!settings.autoGroupNewTabs) {
     console.log('Auto-grouping disabled');
     return;
   }
-  
-  // Add a small delay to wait for the tab to fully load its URL
-  // This helps with "new tab" pages that don't have a URL initially
-  setTimeout(async () => {
-    try {
-      // Get the current state of the tab (URL might have changed)
-      const currentTab = await chrome.tabs.get(tab.id);
-      
-      // Skip internal pages, empty pages, and already grouped tabs
-      if (!currentTab.url || 
-          !currentTab.url.startsWith('http') || 
-          currentTab.groupId !== -1) {
-        console.log(`Tab ${tab.id} skipped: `, 
-          !currentTab.url ? 'No URL' : 
-          currentTab.groupId !== -1 ? 'Already grouped' : 'Not HTTP');
-        return;
-      }
-      
-      // Check if this is a pinned tab and settings say to exclude pinned tabs
-      if (settings.excludePinnedTabs && currentTab.pinned) {
-        console.log(`Tab ${tab.id} skipped: Pinned tab is excluded by settings`);
-        return;
-      }
-      
-      // Add this tab to pending tabs
-      pendingTabs.set(tab.id, {
-        tab: currentTab,
-        timestamp: Date.now(),
-        timeoutId: setTimeout(() => autoGroupTab(tab.id), 10000) // 10 second delay
-      });
-      
-      console.log(`Tab ${tab.id} scheduled for auto-grouping`, currentTab.url);
-    } catch (error) {
-      // Tab may have been closed immediately
-      console.log(`Error scheduling tab ${tab.id}:`, error);
-    }
-  }, 500); // Small delay to allow URL to populate
+
+  if (pendingTabs.has(tab.id)) {
+    return;
+  }
+
+  pendingTabs.set(tab.id, {
+    timestamp: Date.now(),
+    timeoutId: setTimeout(() => autoGroupTab(tab.id), 15000) // Fallback if load never completes
+  });
+
+  console.log(`Tab ${tab.id} scheduled for auto-grouping after load`);
 }
 
 async function autoGroupTab(tabId) {
@@ -541,17 +510,41 @@ async function autoGroupTab(tabId) {
     if (!pendingTabs.has(tabId)) return;
     
     const pendingTab = pendingTabs.get(tabId);
+    clearTimeout(pendingTab.timeoutId);
     pendingTabs.delete(tabId);
     
+    const settings = await chrome.storage.sync.get([
+      'autoGroupNewTabs',
+      'excludePinnedTabs'
+    ]);
+
+    if (!settings.autoGroupNewTabs) {
+      console.log('Auto-grouping disabled');
+      return;
+    }
+
     // Get the updated tab info
     const tab = await chrome.tabs.get(tabId);
     if (tab.groupId !== -1) return; // Already grouped
+    if (!tab.url || !tab.url.startsWith('http')) return;
+    if (settings.excludePinnedTabs && tab.pinned) return;
     
     // Get all existing groups in the current window
     const groups = await chrome.tabGroups.query({ windowId: tab.windowId });
     if (groups.length === 0) {
       // No existing groups, create a new one
-      await createNewGroupForTab(tab);
+      const created = await createNewGroupForTab(tab);
+      await storeLastAutoGroupAction({
+        tabId: tab.id,
+        windowId: tab.windowId,
+        fromGroupId: -1,
+        toGroupId: created?.groupId ?? -1,
+        createdNewGroup: true,
+        groupTitle: created?.title ?? '',
+        groupColor: created?.color ?? '',
+        reasoning: 'No existing groups to reuse.',
+        timestamp: Date.now()
+      });
       return;
     }
     
@@ -569,36 +562,85 @@ async function findGroupingDecision(newTab, existingGroups) {
       return;
     }
 
-    // Get decision from LLM using just group names and colors
-    const decision = await getGroupDecisionFromLLM(newTab, existingGroups);
-    console.log("Group decision:", decision);
+    // Step 1: decide whether to reuse an existing group or create a new one
+    const choice = await getGroupingChoiceFromLLM(newTab, existingGroups);
+    console.log("Group choice:", choice);
 
-    if (decision.create_new_group) {
-      // Create a new group with the suggested name and color
-      await createNewGroupForTab(newTab, decision.suggested_name, decision.suggested_color);
-    } else {
-      // Add to existing group
-      const targetGroupId = decision.target_group_id;
-      try {
-        await chrome.tabs.group({
-          tabIds: [newTab.id],
-          groupId: targetGroupId
-        });
-        console.log(`Tab ${newTab.id} added to existing group ${targetGroupId}`);
-      } catch (error) {
-        console.error(`Error adding tab to group ${targetGroupId}:`, error);
-        // Fallback to creating a new group
-        await createNewGroupForTab(newTab);
-      }
+    if (choice.create_new_group) {
+      // Step 2: get a new group name/color from the LLM
+      const details = await getNewGroupDetailsFromLLM(newTab);
+      const created = await createNewGroupForTab(newTab, details.suggested_name, details.suggested_color);
+      const reasoning = `${choice.reasoning}${details.reasoning ? ` Name: ${details.reasoning}` : ''}`;
+      await storeLastAutoGroupAction({
+        tabId: newTab.id,
+        windowId: newTab.windowId,
+        fromGroupId: -1,
+        toGroupId: created?.groupId ?? -1,
+        createdNewGroup: true,
+        groupTitle: created?.title ?? details.suggested_name ?? '',
+        groupColor: created?.color ?? details.suggested_color ?? '',
+        reasoning: reasoning.trim(),
+        timestamp: Date.now()
+      });
+      return;
+    }
+
+    // Step 2: choose the target existing group from the LLM
+    const target = await getTargetGroupFromLLM(newTab, existingGroups);
+    try {
+      await chrome.tabs.group({
+        tabIds: [newTab.id],
+        groupId: target.target_group_id
+      });
+      console.log(`Tab ${newTab.id} added to existing group ${target.target_group_id}`);
+      const targetGroup = existingGroups.find(group => group.id === target.target_group_id);
+      const reasoning = `${choice.reasoning}${target.reasoning ? ` Target: ${target.reasoning}` : ''}`;
+      await storeLastAutoGroupAction({
+        tabId: newTab.id,
+        windowId: newTab.windowId,
+        fromGroupId: -1,
+        toGroupId: target.target_group_id,
+        createdNewGroup: false,
+        groupTitle: targetGroup?.title ?? '',
+        groupColor: targetGroup?.color ?? '',
+        reasoning: reasoning.trim(),
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error(`Error adding tab to group ${target.target_group_id}:`, error);
+      // Fallback to creating a new group
+      const created = await createNewGroupForTab(newTab);
+      await storeLastAutoGroupAction({
+        tabId: newTab.id,
+        windowId: newTab.windowId,
+        fromGroupId: -1,
+        toGroupId: created?.groupId ?? -1,
+        createdNewGroup: true,
+        groupTitle: created?.title ?? '',
+        groupColor: created?.color ?? '',
+        reasoning: 'Fallback: failed to add to target group.',
+        timestamp: Date.now()
+      });
     }
   } catch (error) {
     console.error("Error in findGroupingDecision:", error);
     // Fallback to creating a new group
-    await createNewGroupForTab(newTab);
+    const created = await createNewGroupForTab(newTab);
+    await storeLastAutoGroupAction({
+      tabId: newTab.id,
+      windowId: newTab.windowId,
+      fromGroupId: -1,
+      toGroupId: created?.groupId ?? -1,
+      createdNewGroup: true,
+      groupTitle: created?.title ?? '',
+      groupColor: created?.color ?? '',
+      reasoning: 'Fallback: failed to make grouping decision.',
+      timestamp: Date.now()
+    });
   }
 }
 
-async function getGroupDecisionFromLLM(newTab, existingGroups) {
+async function getGroupingChoiceFromLLM(newTab, existingGroups) {
   const settings = await chrome.storage.sync.get(['customGroupingInstructions']);
 
   // Only provide group names and colors, no sample tabs
@@ -615,26 +657,13 @@ async function getGroupDecisionFromLLM(newTab, existingGroups) {
   };
 
   // Prepare the prompt
-  const systemPrompt = `You are a browser tab organization assistant that helps decide how to group a newly opened tab.
-  Analyze the new tab and existing tab groups to make the best decision for organizing the browser.
-  
-  Your task is to determine whether the new tab should:
-  1. Be added to one of the existing groups based on their names and colors, OR
-  2. Get its own new group and appropriate name and color (Only if it doesn't fit in any existing group)
-  3. Add emoji to group names for better readability
-  
-  Your response must be valid JSON matching this format:
+  const systemPrompt = `You are a browser tab organization assistant that decides whether a newly opened tab should join an existing group or create a new group.
+  Only decide between the two options based on the new tab info and existing group names/colors.
+  Respond with JSON:
   {
     "create_new_group": boolean,
-    "reasoning": string,
-    "target_group_id": number | null,  // ID of the existing group to join, or null if creating new group
-    "suggested_name": string,  // Suggested name if creating a new group
-    "suggested_color": string   // One of: grey, blue, red, yellow, green, pink, purple, cyan
+    "reasoning": string
   }
-  
-  Note: You only have the group names and colors to work with, not the contents of the tabs in those groups.
-  Make your best guess based on the new tab's URL and title, and the existing group names.
-  
   ${settings.customGroupingInstructions ? `Consider these custom user instructions: ${settings.customGroupingInstructions}` : ""}`;
 
   const userPrompt = `New tab: 
@@ -647,12 +676,9 @@ async function getGroupDecisionFromLLM(newTab, existingGroups) {
     type: "OBJECT",
     properties: {
       create_new_group: { type: "BOOLEAN" },
-      reasoning: { type: "STRING" },
-      target_group_id: { type: "NUMBER", nullable: true },
-      suggested_name: { type: "STRING" },
-      suggested_color: { type: "STRING" }
+      reasoning: { type: "STRING" }
     },
-    required: ["create_new_group", "reasoning", "target_group_id", "suggested_name", "suggested_color"]
+    required: ["create_new_group", "reasoning"]
   };
 
   try {
@@ -664,18 +690,44 @@ async function getGroupDecisionFromLLM(newTab, existingGroups) {
         if (!payload || typeof payload.create_new_group !== 'boolean') {
           return false;
         }
-        const hasReasoning = typeof payload.reasoning === 'string';
-        const hasName = typeof payload.suggested_name === 'string';
-        const hasColor = typeof payload.suggested_color === 'string';
-        const hasTarget = payload.target_group_id === null || typeof payload.target_group_id === 'number';
-        return hasReasoning && hasName && hasColor && hasTarget;
+        return typeof payload.reasoning === 'string';
       }
     );
 
     return result;
   } catch (error) {
+    console.error("Error getting group choice from LLM:", error);
+    return {
+      create_new_group: true,
+      reasoning: "Error occurred during analysis, defaulting to new group"
+    };
+  }
+}
+
+async function getGroupDecisionFromLLM(newTab, existingGroups) {
+  try {
+    const choice = await getGroupingChoiceFromLLM(newTab, existingGroups);
+    if (choice.create_new_group) {
+      const details = await getNewGroupDetailsFromLLM(newTab);
+      return {
+        create_new_group: true,
+        reasoning: choice.reasoning,
+        target_group_id: null,
+        suggested_name: details.suggested_name,
+        suggested_color: details.suggested_color
+      };
+    }
+
+    const target = await getTargetGroupFromLLM(newTab, existingGroups);
+    return {
+      create_new_group: false,
+      reasoning: target.reasoning,
+      target_group_id: target.target_group_id,
+      suggested_name: '',
+      suggested_color: 'grey'
+    };
+  } catch (error) {
     console.error("Error getting group decision from LLM:", error);
-    // Default to creating a new group in case of error
     return {
       create_new_group: true,
       reasoning: "Error occurred during analysis, defaulting to new group",
@@ -684,6 +736,114 @@ async function getGroupDecisionFromLLM(newTab, existingGroups) {
       suggested_color: getDefaultColorFromTab(newTab)
     };
   }
+}
+
+async function getTargetGroupFromLLM(newTab, existingGroups) {
+  const settings = await chrome.storage.sync.get(['customGroupingInstructions']);
+
+  const existingGroupsInfo = existingGroups.map(group => ({
+    id: group.id,
+    name: group.title,
+    color: group.color
+  }));
+
+  const newTabInfo = {
+    title: newTab.title,
+    url: newTab.url
+  };
+
+  const systemPrompt = `You are a browser tab organization assistant.
+  Choose the best existing group for the new tab and return its ID.
+  Respond with JSON:
+  {
+    "target_group_id": number,
+    "reasoning": string
+  }
+  ${settings.customGroupingInstructions ? `Consider these custom user instructions: ${settings.customGroupingInstructions}` : ""}`;
+
+  const userPrompt = `New tab:
+  ${JSON.stringify(newTabInfo, null, 2)}
+
+  Existing groups:
+  ${JSON.stringify(existingGroupsInfo, null, 2)}`;
+
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      target_group_id: { type: "NUMBER" },
+      reasoning: { type: "STRING" }
+    },
+    required: ["target_group_id", "reasoning"]
+  };
+
+  const validGroupIds = new Set(existingGroups.map(group => group.id));
+
+  const result = await makeStructuredRequest(
+    systemPrompt,
+    userPrompt,
+    response_format,
+    (payload) => {
+      if (!payload || typeof payload.target_group_id !== 'number') {
+        return false;
+      }
+      return validGroupIds.has(payload.target_group_id);
+    }
+  );
+
+  return result;
+}
+
+async function getNewGroupDetailsFromLLM(newTab) {
+  const settings = await chrome.storage.sync.get(['customGroupingInstructions']);
+
+  const newTabInfo = {
+    title: newTab.title,
+    url: newTab.url
+  };
+
+  const systemPrompt = `You are a browser tab organization assistant.
+  Propose a concise group name (<= 20 characters) and a group color for the new tab.
+  Add an emoji to the group name for readability when it makes sense.
+  Colors must be one of: grey, blue, red, yellow, green, pink, purple, cyan.
+  Respond with JSON:
+  {
+    "suggested_name": string,
+    "suggested_color": string,
+    "reasoning": string
+  }
+  ${settings.customGroupingInstructions ? `Consider these custom user instructions: ${settings.customGroupingInstructions}` : ""}`;
+
+  const userPrompt = `New tab:
+  ${JSON.stringify(newTabInfo, null, 2)}`;
+
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      suggested_name: { type: "STRING" },
+      suggested_color: { type: "STRING" },
+      reasoning: { type: "STRING" }
+    },
+    required: ["suggested_name", "suggested_color", "reasoning"]
+  };
+
+  const allowedColors = new Set(['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan']);
+
+  const result = await makeStructuredRequest(
+    systemPrompt,
+    userPrompt,
+    response_format,
+    (payload) => {
+      if (!payload || typeof payload.suggested_name !== 'string') {
+        return false;
+      }
+      if (typeof payload.suggested_color !== 'string') {
+        return false;
+      }
+      return allowedColors.has(payload.suggested_color);
+    }
+  );
+
+  return result;
 }
 
 async function createNewGroupForTab(tab, suggestedName = null, suggestedColor = null) {
@@ -696,7 +856,7 @@ async function createNewGroupForTab(tab, suggestedName = null, suggestedColor = 
         color: suggestedColor
       });
       console.log(`Created new group "${suggestedName}" for tab ${tab.id}`);
-      return;
+      return { groupId, title: suggestedName, color: suggestedColor };
     }
     
     // Otherwise, use the LLM grouping for better suggestions
@@ -717,7 +877,7 @@ async function createNewGroupForTab(tab, suggestedName = null, suggestedColor = 
           color: group.group_color
         });
         console.log(`Created AI-suggested group "${group.group_name}" for tab ${tab.id}`);
-        return;
+        return { groupId, title: group.group_name, color: group.group_color };
       }
     } catch (error) {
       console.error("Error using AI for group creation:", error);
@@ -735,9 +895,11 @@ async function createNewGroupForTab(tab, suggestedName = null, suggestedColor = 
     });
     
     console.log(`Created default group "${groupName}" for tab ${tab.id}`);
+    return { groupId, title: groupName, color: color };
   } catch (error) {
     console.error("Error creating new group for tab:", error);
   }
+  return null;
 }
 
 function getDefaultGroupNameFromTab(tab) {
@@ -889,22 +1051,29 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     // Check if this tab is not yet being tracked (new tab)
     if (!pendingTabs.has(tabId) && tab.groupId === -1) {
       handleNewTab(tab);
-    } else if (tab.groupId !== -1) {
-      // This is an existing grouped tab that changed URL - consider regrouping
-      // Add a delay to allow the page to fully load and avoid regrouping during redirects
-      setTimeout(() => {
-        // Get the updated tab state before regrouping
-        chrome.tabs.get(tabId).then(updatedTab => {
-          // Only regroup if the tab is still grouped and URL is stable
-          if (updatedTab.groupId !== -1 && updatedTab.url === tab.url) {
-            regroupExistingTab(updatedTab);
-          }
-        }).catch(error => {
-          // Tab might have been closed
-          console.log(`Tab ${tabId} no longer exists for regrouping`);
-        });
-      }, 3000); // 3 second delay to allow page content to load and avoid redirects
     }
+  }
+
+  if (changeInfo.status === 'complete' && pendingTabs.has(tabId)) {
+    autoGroupTab(tabId);
+    return;
+  }
+
+  if (changeInfo.url && tab.url.startsWith('http') && tab.groupId !== -1) {
+    // This is an existing grouped tab that changed URL - consider regrouping
+    // Add a delay to allow the page to fully load and avoid regrouping during redirects
+    setTimeout(() => {
+      // Get the updated tab state before regrouping
+      chrome.tabs.get(tabId).then(updatedTab => {
+        // Only regroup if the tab is still grouped and URL is stable
+        if (updatedTab.groupId !== -1 && updatedTab.url === tab.url) {
+          regroupExistingTab(updatedTab);
+        }
+      }).catch(error => {
+        // Tab might have been closed
+        console.log(`Tab ${tabId} no longer exists for regrouping`);
+      });
+    }, 3000); // 3 second delay to allow page content to load and avoid redirects
   }
 });
 
@@ -941,4 +1110,51 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     
     return true; // Keep the message channel open for the async response
   }
+
+  if (request.action === "undoAutoGroup") {
+    chrome.storage.sync.get(['lastAutoGroupAction'], async (result) => {
+      const action = result.lastAutoGroupAction;
+      if (!action) {
+        sendResponse({ ok: false, error: 'No recent auto-grouping to undo.' });
+        return;
+      }
+
+      try {
+        const tab = await chrome.tabs.get(action.tabId);
+        if (action.toGroupId === -1) {
+          sendResponse({ ok: false, error: 'Nothing to undo for that action.' });
+          return;
+        }
+
+        if (tab.groupId !== action.toGroupId) {
+          sendResponse({ ok: false, error: 'Tab was moved since the auto-grouping.' });
+          return;
+        }
+
+        if (action.fromGroupId && action.fromGroupId !== -1) {
+          await chrome.tabs.group({
+            tabIds: [tab.id],
+            groupId: action.fromGroupId
+          });
+        } else if (tab.groupId !== -1) {
+          await chrome.tabs.ungroup(tab.id);
+        }
+
+        chrome.storage.sync.remove('lastAutoGroupAction');
+        sendResponse({ ok: true });
+      } catch (error) {
+        console.error('Undo auto-group failed:', error);
+        sendResponse({ ok: false, error: 'Undo failed. The tab might be closed.' });
+      }
+    });
+    return true;
+  }
 });
+
+async function storeLastAutoGroupAction(action) {
+  try {
+    await chrome.storage.sync.set({ lastAutoGroupAction: action });
+  } catch (error) {
+    console.error('Failed to store last auto-group action:', error);
+  }
+}

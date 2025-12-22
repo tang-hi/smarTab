@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const modelHint = document.getElementById('modelHint');
     const customApiBaseUrl = document.getElementById('customApiBaseUrl');
     const customApiBaseUrlField = document.getElementById('customApiBaseUrlField');
+    const testConnectionButton = document.getElementById('testConnectionButton');
+    const connectionStatus = document.getElementById('connectionStatus');
     const useAdvancedGrouping = document.getElementById('useAdvancedGrouping');
     const autoGroupNewTabs = document.getElementById('autoGroupNewTabs');
     const autoRegroupTabs = document.getElementById('autoRegroupTabs');
@@ -64,6 +66,103 @@ document.addEventListener('DOMContentLoaded', () => {
         modelHint.textContent = isCustom
             ? 'Use the exact model id from your provider.'
             : 'Choose a recommended model for this provider.';
+    }
+
+    function setConnectionStatus(message, state) {
+        connectionStatus.textContent = message;
+        connectionStatus.classList.remove('is-success', 'is-error');
+        if (state) {
+            connectionStatus.classList.add(`is-${state}`);
+        }
+    }
+
+    function resetConnectionStatus() {
+        setConnectionStatus('', null);
+    }
+
+    function setTestLoading(isLoading) {
+        testConnectionButton.disabled = isLoading;
+        testConnectionButton.classList.toggle('loading', isLoading);
+    }
+
+    function normalizeBaseUrl(value) {
+        return value.replace(/\/+$/, '');
+    }
+
+    async function testConnection() {
+        const provider = aiProvider.value;
+        const key = apiKey.value.trim();
+        const model = provider === 'custom' ? modelNameCustom.value.trim() : modelNameSelect.value;
+
+        if (!key) {
+            setConnectionStatus('Add an API key first.', 'error');
+            return;
+        }
+        if (!model) {
+            setConnectionStatus('Select a model first.', 'error');
+            return;
+        }
+
+        let baseUrl = 'https://api.openai.com/v1';
+        if (provider === 'custom') {
+            const customUrl = customApiBaseUrl.value.trim();
+            if (!customUrl) {
+                setConnectionStatus('Add an API base URL for custom providers.', 'error');
+                return;
+            }
+            baseUrl = normalizeBaseUrl(customUrl);
+        }
+
+        setTestLoading(true);
+        setConnectionStatus('Testing connection...', null);
+
+        try {
+            if (provider === 'gemini') {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: 'ping' }]
+                        }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `HTTP ${response.status}`);
+                }
+            } else {
+                const response = await fetch(`${baseUrl}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages: [{ role: 'user', content: 'ping' }],
+                        max_tokens: 1,
+                        temperature: 0
+                    })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `HTTP ${response.status}`);
+                }
+            }
+
+            setConnectionStatus('Connection ok.', 'success');
+        } catch (error) {
+            const message = (error && error.message ? error.message : 'Connection failed.').trim();
+            const detail = message.length > 200 ? `${message.slice(0, 200)}...` : message;
+            setConnectionStatus(`Failed: ${detail}`, 'error');
+        } finally {
+            setTestLoading(false);
+        }
     }
 
     let modelByProvider = {
@@ -171,11 +270,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     apiKey.addEventListener('change', () => {
         chrome.storage.sync.set({ apiKey: apiKey.value.trim() });
+        resetConnectionStatus();
     });
 
     aiProvider.addEventListener('change', () => {
         const provider = aiProvider.value;
         applyProviderUI(provider);
+        resetConnectionStatus();
 
         if (provider === 'custom') {
             modelNameCustom.value = modelByProvider.custom || '';
@@ -202,16 +303,19 @@ document.addEventListener('DOMContentLoaded', () => {
             ...(provider === 'openai' ? { openaiModelName: modelNameSelect.value } : {}),
             ...(provider === 'gemini' ? { geminiModelName: modelNameSelect.value } : {})
         });
+        resetConnectionStatus();
     });
 
     modelNameCustom.addEventListener('change', () => {
         const value = modelNameCustom.value.trim();
         modelByProvider.custom = value;
         chrome.storage.sync.set({ customModelName: value, modelName: value });
+        resetConnectionStatus();
     });
 
     customApiBaseUrl.addEventListener('change', () => {
         chrome.storage.sync.set({ customApiBaseUrl: customApiBaseUrl.value.trim() });
+        resetConnectionStatus();
     });
 
     useAdvancedGrouping.addEventListener('change', () => {
@@ -224,6 +328,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     autoRegroupTabs.addEventListener('change', () => {
         chrome.storage.sync.set({ autoRegroupTabs: autoRegroupTabs.checked });
+    });
+
+    testConnectionButton.addEventListener('click', () => {
+        testConnection();
     });
 
     // Event listener for pinned tabs exclusion
