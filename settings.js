@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     // Elements - Main Settings
     const closeOtherGroups = document.getElementById('closeOtherGroups');
-    const backButton = document.getElementById('backButton');
     const apiKey = document.getElementById('apiKey');
     const aiProvider = document.getElementById('aiProvider');
     const modelNameSelect = document.getElementById('modelName');
@@ -10,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const customApiBaseUrl = document.getElementById('customApiBaseUrl');
     const customApiBaseUrlField = document.getElementById('customApiBaseUrlField');
     const testConnectionButton = document.getElementById('testConnectionButton');
+    const refreshModelsButton = document.getElementById('refreshModelsButton');
     const connectionStatus = document.getElementById('connectionStatus');
 
     // Elements - Advanced Settings
@@ -18,9 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentWindowOnly = document.getElementById('currentWindowOnly');
     const excludeFrozenTabs = document.getElementById('excludeFrozenTabs');
     const customGroupingInstructions = document.getElementById('customGroupingInstructions');
-    const openShortcutsLink = document.getElementById('openShortcutsLink');
-    const groupShortcut = document.getElementById('groupShortcut');
-    const searchShortcut = document.getElementById('searchShortcut');
 
     // Elements - View Toggle
     const mainSettings = document.getElementById('mainSettings');
@@ -38,13 +35,26 @@ document.addEventListener('DOMContentLoaded', () => {
             { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
             { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
         ],
+        doubao: [
+            { value: 'doubao-seed-1.8', label: 'Doubao Seed 1.8 (agent)' },
+            { value: 'doubao-seed-1.6', label: 'Doubao Seed 1.6 (balanced)' },
+            { value: 'doubao-seed-1.6-lite', label: 'Doubao Seed 1.6 Lite (cost-effective)' },
+            { value: 'doubao-seed-1.6-flash', label: 'Doubao Seed 1.6 Flash (fast)' }
+        ],
         custom: []
     };
 
     const DEFAULT_MODEL = {
         openai: 'gpt-4o-mini',
         gemini: 'gemini-2.0-flash',
+        doubao: 'doubao-seed-1.6-flash',
         custom: ''
+    };
+
+    const PROVIDER_API_BASE = {
+        openai: 'https://api.openai.com/v1',
+        gemini: 'https://generativelanguage.googleapis.com/v1beta',
+        doubao: 'https://ark.cn-beijing.volces.com/api/v3'
     };
 
     // ==========================================
@@ -89,9 +99,99 @@ document.addEventListener('DOMContentLoaded', () => {
         modelNameSelect.classList.toggle('hidden', isCustom);
         modelNameCustom.classList.toggle('hidden', !isCustom);
         customApiBaseUrlField.classList.toggle('hidden', !isCustom);
+        refreshModelsButton.classList.toggle('hidden', isCustom);
         modelHint.textContent = isCustom
             ? 'Use the exact model id from your provider.'
-            : 'Choose a recommended model for this provider.';
+            : 'Choose a recommended model or refresh to fetch latest.';
+    }
+
+    // ==========================================
+    // Fetch Models from API
+    // ==========================================
+    async function fetchModelsFromAPI(provider, key) {
+        if (!key) return null;
+
+        try {
+            if (provider === 'gemini') {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                if (!response.ok) return null;
+                const data = await response.json();
+                return data.models
+                    ?.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+                    ?.map(m => ({
+                        value: m.name.replace('models/', ''),
+                        label: m.displayName || m.name.replace('models/', '')
+                    })) || null;
+            }
+
+            if (provider === 'openai') {
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    headers: { 'Authorization': `Bearer ${key}` }
+                });
+                if (!response.ok) return null;
+                const data = await response.json();
+                return data.data
+                    ?.filter(m => m.id.includes('gpt'))
+                    ?.sort((a, b) => a.id.localeCompare(b.id))
+                    ?.map(m => ({ value: m.id, label: m.id })) || null;
+            }
+
+            if (provider === 'doubao') {
+                // 豆包 API 暂不支持列出模型，使用默认列表
+                return null;
+            }
+        } catch (error) {
+            console.error('Error fetching models:', error);
+            return null;
+        }
+
+        return null;
+    }
+
+    async function refreshModels() {
+        const provider = aiProvider.value;
+        const key = apiKey.value.trim();
+
+        if (provider === 'custom') {
+            setConnectionStatus('Custom provider: enter model ID manually.', null);
+            return;
+        }
+
+        if (provider === 'doubao') {
+            setConnectionStatus('Doubao does not support listing models. Using defaults.', null);
+            return;
+        }
+
+        if (!key) {
+            setConnectionStatus('Add an API key first to refresh models.', 'error');
+            return;
+        }
+
+        setConnectionStatus('Fetching models...', null);
+
+        try {
+            const response = await chrome.runtime.sendMessage({
+                action: 'fetchModels',
+                provider,
+                apiKey: key
+            });
+
+            if (response?.error) {
+                setConnectionStatus(`Failed: ${response.error}`, 'error');
+                return;
+            }
+
+            if (response?.models && response.models.length > 0) {
+                MODEL_OPTIONS[provider] = response.models;
+                const currentModel = modelNameSelect.value;
+                updateModelOptions(provider, currentModel);
+                setConnectionStatus(`Found ${response.models.length} models.`, 'success');
+            } else {
+                setConnectionStatus('Could not fetch models. Using defaults.', null);
+            }
+        } catch (error) {
+            setConnectionStatus(`Error: ${error.message}`, 'error');
+        }
     }
 
     // ==========================================
@@ -163,6 +263,25 @@ document.addEventListener('DOMContentLoaded', () => {
                     const text = await response.text();
                     throw new Error(text || `HTTP ${response.status}`);
                 }
+            } else if (provider === 'doubao') {
+                const response = await fetch(`${PROVIDER_API_BASE.doubao}/chat/completions`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model,
+                        messages: [{ role: 'user', content: 'ping' }],
+                        max_tokens: 1,
+                        temperature: 0
+                    })
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error(text || `HTTP ${response.status}`);
+                }
             } else {
                 const response = await fetch(`${baseUrl}/chat/completions`, {
                     method: 'POST',
@@ -195,31 +314,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // Load Shortcuts
-    // ==========================================
-    async function loadShortcuts() {
-        try {
-            const commands = await chrome.commands.getAll();
-            const groupCommand = commands.find(cmd => cmd.name === 'group-tabs');
-            const searchCommand = commands.find(cmd => cmd.name === 'search-tabs');
-
-            if (groupCommand?.shortcut && groupShortcut) {
-                groupShortcut.textContent = groupCommand.shortcut;
-            }
-            if (searchCommand?.shortcut && searchShortcut) {
-                searchShortcut.textContent = searchCommand.shortcut;
-            }
-        } catch (error) {
-            console.error('Error loading shortcuts:', error);
-        }
-    }
-
-    // ==========================================
     // Load Settings
     // ==========================================
     let modelByProvider = {
         openai: DEFAULT_MODEL.openai,
         gemini: DEFAULT_MODEL.gemini,
+        doubao: DEFAULT_MODEL.doubao,
         custom: ''
     };
 
@@ -235,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'modelName',
         'openaiModelName',
         'geminiModelName',
+        'doubaoModelName',
         'customModelName',
         'customApiBaseUrl',
         'geminiApiKey'
@@ -253,6 +354,7 @@ document.addEventListener('DOMContentLoaded', () => {
         modelByProvider = {
             openai: result.openaiModelName ?? result.modelName ?? DEFAULT_MODEL.openai,
             gemini: result.geminiModelName ?? result.modelName ?? DEFAULT_MODEL.gemini,
+            doubao: result.doubaoModelName ?? DEFAULT_MODEL.doubao,
             custom: result.customModelName ?? ''
         };
 
@@ -288,10 +390,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.sync.set({ closeOtherGroups: closeOtherGroups.checked });
     });
 
-    backButton.addEventListener('click', () => {
-        window.history.back();
-    });
-
     apiKey.addEventListener('change', () => {
         chrome.storage.sync.set({ apiKey: apiKey.value.trim() });
         resetConnectionStatus();
@@ -314,7 +412,8 @@ document.addEventListener('DOMContentLoaded', () => {
             aiProvider: provider,
             modelName: nextModel,
             ...(provider === 'openai' ? { openaiModelName: nextModel } : {}),
-            ...(provider === 'gemini' ? { geminiModelName: nextModel } : {})
+            ...(provider === 'gemini' ? { geminiModelName: nextModel } : {}),
+            ...(provider === 'doubao' ? { doubaoModelName: nextModel } : {})
         });
     });
 
@@ -325,7 +424,8 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.sync.set({
             modelName: modelNameSelect.value,
             ...(provider === 'openai' ? { openaiModelName: modelNameSelect.value } : {}),
-            ...(provider === 'gemini' ? { geminiModelName: modelNameSelect.value } : {})
+            ...(provider === 'gemini' ? { geminiModelName: modelNameSelect.value } : {}),
+            ...(provider === 'doubao' ? { doubaoModelName: modelNameSelect.value } : {})
         });
         resetConnectionStatus();
     });
@@ -344,6 +444,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     testConnectionButton.addEventListener('click', () => {
         testConnection();
+    });
+
+    refreshModelsButton.addEventListener('click', () => {
+        refreshModels();
     });
 
     // ==========================================
@@ -369,14 +473,9 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.sync.set({ customGroupingInstructions: customGroupingInstructions.value });
     });
 
-    openShortcutsLink?.addEventListener('click', () => {
-        chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
-    });
-
     // ==========================================
     // Initialize
     // ==========================================
-    loadShortcuts();
 
     // Handle hash navigation for advanced settings
     if (window.location.hash === '#advanced') {

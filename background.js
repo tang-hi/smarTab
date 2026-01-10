@@ -6,7 +6,9 @@ import { getConfig, DEFAULTS } from './modules/config.js';
 import {
   requestGroupingSuggestions,
   handleLargeBatchTabGrouping,
-  requestTwoStageGrouping
+  requestTwoStageGrouping,
+  analyzeTabsUnderstanding,
+  createSmartGroups
 } from './modules/ai.js';
 import { focusTab } from './modules/tabs.js';
 
@@ -75,6 +77,55 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Message Handlers
 // ==========================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Fetch models from API (bypass CORS)
+  if (request.action === 'fetchModels') {
+    const { provider, apiKey } = request;
+
+    (async () => {
+      try {
+        if (provider === 'gemini') {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+          if (!response.ok) {
+            sendResponse({ error: `HTTP ${response.status}` });
+            return;
+          }
+          const data = await response.json();
+          const models = data.models
+            ?.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+            ?.map(m => ({
+              value: m.name.replace('models/', ''),
+              label: m.displayName || m.name.replace('models/', '')
+            })) || [];
+          sendResponse({ models });
+        } else if (provider === 'openai') {
+          const response = await fetch('https://api.openai.com/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+          });
+          if (!response.ok) {
+            sendResponse({ error: `HTTP ${response.status}` });
+            return;
+          }
+          const data = await response.json();
+          const models = data.data
+            ?.filter(m => m.id.includes('gpt'))
+            ?.sort((a, b) => b.id.localeCompare(a.id))
+            ?.map(m => ({ value: m.id, label: m.id })) || [];
+          sendResponse({ models });
+        } else if (provider === 'doubao') {
+          // Doubao doesn't support listing models
+          sendResponse({ models: null, message: 'Doubao does not support listing models' });
+        } else {
+          sendResponse({ models: null });
+        }
+      } catch (error) {
+        console.error('Error fetching models:', error);
+        sendResponse({ error: error.message });
+      }
+    })();
+
+    return true;
+  }
+
   // Get all tabs for search overlay
   if (request.action === 'getAllTabs') {
     (async () => {
@@ -132,13 +183,48 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     getConfig(['customGroupingInstructions']).then(async (settings) => {
       try {
-        const groupingSuggestions = await requestTwoStageGrouping(
+        // Stage 1: Analyze tabs
+        sendResponse({ stage: 'analyzing' });
+      } catch (error) {
+        console.error('Error in two-stage grouping:', error);
+        sendResponse({ error: error.message });
+      }
+    });
+
+    return true;
+  }
+
+  // Stage 1: Analyze tabs understanding
+  if (request.action === 'analyzeTabsStage1') {
+    const { tabs } = request;
+
+    (async () => {
+      try {
+        const tabUnderstanding = await analyzeTabsUnderstanding(tabs);
+        sendResponse({ tabUnderstanding });
+      } catch (error) {
+        console.error('Error in stage 1:', error);
+        sendResponse({ error: error.message });
+      }
+    })();
+
+    return true;
+  }
+
+  // Stage 2: Create smart groups
+  if (request.action === 'createGroupsStage2') {
+    const { tabs, tabUnderstanding } = request;
+
+    getConfig(['customGroupingInstructions']).then(async (settings) => {
+      try {
+        const groupingSuggestions = await createSmartGroups(
           tabs,
+          tabUnderstanding,
           settings.customGroupingInstructions || ''
         );
         sendResponse({ groupingSuggestions });
       } catch (error) {
-        console.error('Error getting two-stage grouping:', error);
+        console.error('Error in stage 2:', error);
         sendResponse({ error: error.message });
       }
     });
@@ -152,7 +238,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
     (async () => {
       try {
-        const activeTab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+        // Get the original window from the first tab's windowId
+        // Find the active tab in the original window
+        const originalWindowId = tabs[0]?.windowId;
+        const activeTab = originalWindowId
+          ? (await chrome.tabs.query({ active: true, windowId: originalWindowId }))[0]
+          : null;
 
         for (const group of groupingSuggestions.groups) {
           let tabIndices = group.tab_indices;
@@ -167,7 +258,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
           if (tabIds.length === 0) continue;
 
-          const groupId = await chrome.tabs.group({ tabIds });
+          // Create group with explicit windowId to avoid popup window issues
+          const groupOptions = { tabIds };
+          const firstTab = tabs[tabIndices[0]];
+          if (firstTab?.windowId) {
+            groupOptions.createProperties = { windowId: firstTab.windowId };
+          }
+
+          const groupId = await chrome.tabs.group(groupOptions);
           const hasActiveTab = activeTab && tabIds.includes(activeTab.id);
 
           await chrome.tabGroups.update(groupId, {

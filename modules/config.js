@@ -22,6 +22,10 @@ export const AI_MODELS = {
   },
   gemini: {
     default: 'gemini-2.0-flash'
+  },
+  doubao: {
+    default: 'doubao-seed-1.6-flash',
+    baseUrl: 'https://ark.cn-beijing.volces.com/api/v3'
   }
 };
 

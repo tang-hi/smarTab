@@ -4,17 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmarTab Settings</title>
+    <link rel="icon" type="image/png" sizes="128x128" href="images/128.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="images/48.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="images/16.png" />
     <link rel="stylesheet" href="styles/main.css" />
   </head>
 
   <body class="settings">
     <div class="settings-shell">
       <header class="settings-header">
-        <button class="btn btn-ghost btn-icon" id="backButton" aria-label="Back">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </button>
         <div class="settings-title">
           <img src="images/128.png" alt="SmarTab" />
           <div>
@@ -35,6 +33,7 @@
               <select id="aiProvider">
                 <option value="gemini">Gemini</option>
                 <option value="openai">OpenAI</option>
+                <option value="doubao">Doubao (豆包)</option>
                 <option value="custom">Custom (OpenAI-compatible)</option>
               </select>
             </div>
@@ -59,6 +58,12 @@
                   class="hidden"
                   placeholder="e.g. openrouter/auto"
                 />
+                <button class="btn btn-secondary btn-icon" type="button" id="refreshModelsButton" title="Refresh models">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16">
+                    <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M21 3v5h-5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </button>
               </div>
               <div id="modelHint" class="field-hint"></div>
             </div>
@@ -166,30 +171,6 @@
                 placeholder="Example: Always group GitHub tabs together. Separate work docs from tutorials."
               ></textarea>
             </div>
-          </section>
-
-          <section class="card section" style="--delay: 0.15s">
-            <h2>Keyboard Shortcuts</h2>
-            <p class="section-desc">Quick actions from anywhere in Chrome.</p>
-            <div class="shortcut-row">
-              <div class="shortcut-info">
-                <span class="shortcut-name">Group all tabs</span>
-                <span class="shortcut-desc">Trigger AI grouping</span>
-              </div>
-              <kbd id="groupShortcut">Ctrl+Shift+G</kbd>
-            </div>
-            <div class="shortcut-row">
-              <div class="shortcut-info">
-                <span class="shortcut-name">Search tabs</span>
-                <span class="shortcut-desc">Open tab search overlay</span>
-              </div>
-              <kbd id="searchShortcut">Ctrl+Shift+F</kbd>
-            </div>
-            <p class="field-hint" style="margin-top: 12px;">
-              <button class="btn btn-ghost btn-sm" id="openShortcutsLink" type="button">
-                Customize shortcuts in Chrome settings →
-              </button>
-            </p>
           </section>
         </div>
       </div>

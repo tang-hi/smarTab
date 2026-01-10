@@ -17,6 +17,7 @@ import {
 function getDefaultModelForProvider(provider) {
   if (provider === 'openai') return AI_MODELS.openai.default;
   if (provider === 'gemini') return AI_MODELS.gemini.default;
+  if (provider === 'doubao') return AI_MODELS.doubao.default;
   return '';
 }
 
@@ -27,6 +28,9 @@ function normalizeModel(provider, model) {
     return getDefaultModelForProvider(provider);
   }
   if (provider === 'openai' && model.startsWith('gemini-')) {
+    return getDefaultModelForProvider(provider);
+  }
+  if (provider === 'doubao' && !model.startsWith('doubao-')) {
     return getDefaultModelForProvider(provider);
   }
   return model;
@@ -50,13 +54,14 @@ export async function getAIConfig() {
     'modelName',
     'openaiModelName',
     'geminiModelName',
+    'doubaoModelName',
     'customModelName',
     'apiKey',
     'geminiApiKey',
     'customApiBaseUrl'
   ]);
 
-  const provider = settings.aiProvider === 'openai' || settings.aiProvider === 'custom'
+  const provider = settings.aiProvider === 'openai' || settings.aiProvider === 'custom' || settings.aiProvider === 'doubao'
     ? settings.aiProvider
     : 'gemini';
 
@@ -66,13 +71,17 @@ export async function getAIConfig() {
     ? settings.openaiModelName
     : provider === 'gemini'
       ? settings.geminiModelName
-      : settings.customModelName;
+      : provider === 'doubao'
+        ? settings.doubaoModelName
+        : settings.customModelName;
 
   const model = normalizeModel(provider, modelFromProvider || settings.modelName);
 
   const baseUrl = provider === 'custom'
     ? normalizeBaseUrl(settings.customApiBaseUrl)
-    : AI_MODELS.openai.baseUrl;
+    : provider === 'doubao'
+      ? AI_MODELS.doubao.baseUrl
+      : AI_MODELS.openai.baseUrl;
 
   return { provider, apiKey, model, baseUrl };
 }
@@ -153,7 +162,7 @@ export async function makeStructuredRequest(systemPrompt, userPrompt, responseSc
 
   while (attempts < maxRetries) {
     try {
-      const result = config.provider === 'openai' || config.provider === 'custom'
+      const result = config.provider === 'openai' || config.provider === 'custom' || config.provider === 'doubao'
         ? await requestOpenAI(config, systemPrompt, userPrompt)
         : await requestGemini(config, systemPrompt, userPrompt, responseSchema);
 
@@ -187,27 +196,14 @@ export async function makeStructuredRequest(systemPrompt, userPrompt, responseSc
 export async function analyzeTabsUnderstanding(tabs) {
   const tabsInfo = extractTabInfo(tabs);
 
-  const systemPrompt = `You are a browser tab analysis assistant. Your task is to understand each tab's content and the user's intent for opening it.
+  const systemPrompt = `Analyze browser tabs. For each tab provide:
+- description: what the page is (brief)
+- intent: user's goal/task
+- keywords: 2-4 for grouping
 
-For each tab, provide:
-1. description: A brief description of what the page is about (1-2 sentences)
-2. intent: Why the user likely opened this tab (what task/goal)
-3. keywords: 2-4 keywords for grouping reference
+Output: {"tabs": [{"index":0,"description":"...","intent":"...","keywords":["..."]}]}`;
 
-Output JSON format:
-{
-  "tabs": [
-    {
-      "index": 0,
-      "description": "React framework source code repository",
-      "intent": "Learning/developing frontend project",
-      "keywords": ["development", "frontend", "React"]
-    }
-  ]
-}`;
-
-  const userPrompt = `Analyze the following browser tabs:
-${JSON.stringify(tabsInfo, null, 2)}`;
+  const userPrompt = JSON.stringify(tabsInfo);
 
   const response_format = {
     type: "OBJECT",
@@ -243,62 +239,20 @@ ${JSON.stringify(tabsInfo, null, 2)}`;
 export async function createSmartGroups(tabs, tabUnderstanding, customGroupingInstructions) {
   const tabsInfo = extractTabInfo(tabs);
 
-  const systemPrompt = `You are a browser tab grouping assistant. Using the tab analysis provided, create smart groupings.
+  const systemPrompt = `Group browser tabs by task/intent first, then domain/category.
 
-**Grouping Strategy (by priority)**:
-1. **Group by task/intent first** - If you can identify a user task, group tabs by that task
-   - Same task may involve different websites
-   - Same website may belong to different tasks
-   - Examples: "📊 Data Analysis", "🛒 Shopping", "📖 Learning Rust"
+Priority: task > domain > other.
+- Don't force connections or create single-tab groups
+- Group names: short with emoji (🔧 Fix Bug, GitHub)
+- Colors: blue(work/dev), green(learning), yellow(todo), red(urgent), pink(fun/social), purple(creative), cyan(tools), grey(other)
 
-2. **Group by domain/category** - If no clear task, but multiple similar tabs exist
-   - Examples: "GitHub", "📺 YouTube", "📰 News"
+Output: {"groups": [{"group_name":"...","group_color":"blue","tab_indices":[0,1],"reasoning":"..."}]}`;
 
-3. **Fallback** - If tabs have no clear relationship
-   - Put in "📌 Other" or leave ungrouped
-
-**Important Rules**:
-- Don't force connections that don't exist
-- Better to have fewer groups than weird ones
-- Don't create groups with only 1 tab (except truly standalone ones)
-- If only 1-2 tabs fit a category, consider putting them in "Other"
-
-**Group Name Format**:
-- Short (2-4 words + emoji)
-- Task groups: describe the task (🔧 Fix Bug, 📝 Write Report)
-- Domain groups: site name or category (GitHub, 📺 Videos)
-
-**Color Semantics**:
-- blue: Work, development, tech
-- green: Learning, reading, docs
-- yellow: Todo, temporary, read later
-- red: Important, urgent
-- pink: Entertainment, social, shopping
-- purple: Creative, design, inspiration
-- cyan: Tools, reference, resources
-- grey: Other, misc
-
-Output JSON format:
-{
-  "groups": [
-    {
-      "group_name": "⚛️ React Dev",
-      "group_color": "blue",
-      "tab_indices": [0, 1],
-      "reasoning": "Both are React development resources"
-    }
-  ]
-}`;
-
-  const userPrompt = `Create groupings based on these tabs and their analysis:
-
-Tabs:
-${JSON.stringify(tabsInfo, null, 2)}
-
-Tab Analysis:
-${JSON.stringify(tabUnderstanding.tabs, null, 2)}
-
-${customGroupingInstructions ? `Custom Instructions: ${customGroupingInstructions}` : ''}`;
+  const userPrompt = JSON.stringify({
+    tabs: tabsInfo,
+    analysis: tabUnderstanding.tabs,
+    custom: customGroupingInstructions || undefined
+  });
 
   const response_format = {
     type: "OBJECT",
@@ -328,25 +282,80 @@ ${customGroupingInstructions ? `Custom Instructions: ${customGroupingInstruction
 }
 
 /**
- * Two-Stage Grouping Pipeline
- * Combines tab understanding and smart grouping
+ * Single-Request Fast Grouping
+ * Direct grouping without two-stage analysis
  */
 export async function requestTwoStageGrouping(tabs, customGroupingInstructions) {
-  // Stage 1: Understand tabs
-  console.log('Stage 1: Analyzing tabs...');
-  const tabUnderstanding = await analyzeTabsUnderstanding(tabs);
-  console.log('Tab understanding:', tabUnderstanding);
+  const tabsInfo = extractTabInfo(tabs);
 
-  // Stage 2: Create groups
-  console.log('Stage 2: Creating groups...');
-  const groupingSuggestions = await createSmartGroups(tabs, tabUnderstanding, customGroupingInstructions);
-  console.log('Grouping suggestions:', groupingSuggestions);
+  const systemPrompt = `Group browser tabs.
 
-  // Attach understanding for preview UI
-  return {
-    ...groupingSuggestions,
-    tabUnderstanding: tabUnderstanding.tabs
+Rules:
+- Group by task/intent > domain
+- Don't create single-tab groups
+- Names: short + emoji
+- Colors: blue(work), green(learn), yellow(todo), red(urgent), pink(fun), purple(creative), cyan(tools), grey(other)
+- IMPORTANT: Every tab must be in exactly one group. Don't miss any tabs.
+
+Output: {"groups":[{"group_name":"...","group_color":"blue","tab_indices":[0,1],"reasoning":"..."}]}`;
+
+  const userPrompt = JSON.stringify({
+    total: tabs.length,
+    tabs: tabsInfo.map((t, i) => ({ i, t: t.title, u: t.url })),
+    custom: customGroupingInstructions || undefined
+  });
+
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      groups: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            group_name: { type: "STRING" },
+            group_color: { type: "STRING" },
+            tab_indices: { type: "ARRAY", items: { type: "NUMBER" } },
+            reasoning: { type: "STRING" }
+          },
+          required: ["group_name", "group_color", "tab_indices", "reasoning"]
+        }
+      }
+    }
   };
+
+  const groupingSuggestions = await makeStructuredRequest(
+    systemPrompt,
+    userPrompt,
+    response_format,
+    validateGroupingSuggestions
+  );
+
+  // Handle ungrouped tabs - add them to an "Other" group
+  const groupedIndices = new Set();
+  for (const group of groupingSuggestions.groups) {
+    for (const idx of group.tab_indices) {
+      groupedIndices.add(idx);
+    }
+  }
+
+  const ungroupedIndices = [];
+  for (let i = 0; i < tabs.length; i++) {
+    if (!groupedIndices.has(i)) {
+      ungroupedIndices.push(i);
+    }
+  }
+
+  if (ungroupedIndices.length > 0) {
+    groupingSuggestions.groups.push({
+      group_name: "📌 Other",
+      group_color: "grey",
+      tab_indices: ungroupedIndices,
+      reasoning: "Tabs that don't fit other groups"
+    });
+  }
+
+  return groupingSuggestions;
 }
 
 // ==========================================

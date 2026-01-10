@@ -4,6 +4,7 @@
 
 const elements = {
     loadingState: document.getElementById('loadingState'),
+    loadingText: document.getElementById('loadingText'),
     errorState: document.getElementById('errorState'),
     errorMessage: document.getElementById('errorMessage'),
     previewContent: document.getElementById('previewContent'),
@@ -12,7 +13,11 @@ const elements = {
     closeButton: document.getElementById('closeButton'),
     cancelButton: document.getElementById('cancelButton'),
     applyButton: document.getElementById('applyButton'),
-    retryButton: document.getElementById('retryButton')
+    retryButton: document.getElementById('retryButton'),
+    step1: document.getElementById('step1'),
+    step2: document.getElementById('step2'),
+    step3: document.getElementById('step3'),
+    step4: document.getElementById('step4')
 };
 
 let groupingData = null;
@@ -22,6 +27,18 @@ function showState(state) {
     elements.loadingState.classList.toggle('hidden', state !== 'loading');
     elements.errorState.classList.toggle('hidden', state !== 'error');
     elements.previewContent.classList.toggle('hidden', state !== 'preview');
+}
+
+function setStep(stepNum) {
+    // Reset all steps
+    [elements.step1, elements.step2, elements.step3, elements.step4].forEach((step, i) => {
+        step.classList.remove('active', 'done');
+        if (i + 1 < stepNum) {
+            step.classList.add('done');
+        } else if (i + 1 === stepNum) {
+            step.classList.add('active');
+        }
+    });
 }
 
 function showError(message) {
@@ -145,6 +162,7 @@ async function applyGrouping() {
 
 async function requestGrouping() {
     showState('loading');
+    setStep(1); // Collecting tabs
 
     try {
         // Get tabs data from URL params or request from background
@@ -190,28 +208,57 @@ async function requestGrouping() {
             return;
         }
 
-        // Request grouping suggestions from background
-        chrome.runtime.sendMessage({
-            action: 'getTwoStageGrouping',
-            tabs: tabsData
-        }, (response) => {
-            if (chrome.runtime.lastError) {
-                showError(chrome.runtime.lastError.message);
-                return;
-            }
-
-            if (response?.error) {
-                showError(response.error);
-                return;
-            }
-
-            if (response?.groupingSuggestions) {
-                groupingData = response.groupingSuggestions;
-                renderPreview(groupingData, tabsData);
-            } else {
-                showError('Failed to get grouping suggestions.');
-            }
+        // Stage 1: Analyze tabs understanding
+        setStep(2);
+        const stage1Response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({
+                action: 'analyzeTabsStage1',
+                tabs: tabsData
+            }, resolve);
         });
+
+        if (chrome.runtime.lastError) {
+            showError(chrome.runtime.lastError.message);
+            return;
+        }
+
+        if (stage1Response?.error) {
+            showError(stage1Response.error);
+            return;
+        }
+
+        if (!stage1Response?.tabUnderstanding) {
+            showError('Failed to analyze tabs.');
+            return;
+        }
+
+        // Stage 2: Create smart groups
+        setStep(3);
+        const stage2Response = await new Promise((resolve) => {
+            chrome.runtime.sendMessage({
+                action: 'createGroupsStage2',
+                tabs: tabsData,
+                tabUnderstanding: stage1Response.tabUnderstanding
+            }, resolve);
+        });
+
+        if (chrome.runtime.lastError) {
+            showError(chrome.runtime.lastError.message);
+            return;
+        }
+
+        if (stage2Response?.error) {
+            showError(stage2Response.error);
+            return;
+        }
+
+        if (stage2Response?.groupingSuggestions) {
+            setStep(4); // Organizing results
+            groupingData = stage2Response.groupingSuggestions;
+            renderPreview(groupingData, tabsData);
+        } else {
+            showError('Failed to get grouping suggestions.');
+        }
     } catch (error) {
         console.error('Error requesting grouping:', error);
         showError(error.message || 'An unexpected error occurred.');

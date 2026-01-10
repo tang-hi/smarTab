@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Search Tabs - SmarTab</title>
+    <link rel="icon" type="image/png" sizes="128x128" href="images/128.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="images/48.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="images/16.png" />
+    <link rel="stylesheet" href="styles/main.css" />
+  </head>
+
+  <body class="search">
+    <div class="search-shell">
+      <div class="search-header">
+        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <circle cx="11" cy="11" r="8" />
+          <path d="M21 21l-4.35-4.35" stroke-linecap="round" />
+        </svg>
+        <input
+          type="text"
+          id="searchInput"
+          class="search-input"
+          placeholder="Search tabs..."
+          autocomplete="off"
+          spellcheck="false"
+          autofocus
+        />
+        <span id="searchMode" class="search-mode hidden">AI</span>
+        <span class="search-hint">ESC to close</span>
+      </div>
+      <div id="results" class="search-results"></div>
+      <div class="search-footer">
+        <div class="search-shortcut">
+          <kbd>↑</kbd><kbd>↓</kbd> Navigate
+        </div>
+        <div class="search-shortcut">
+          <kbd>↵</kbd> Switch
+        </div>
+        <div class="search-shortcut">
+          <kbd>Ctrl</kbd><kbd>D</kbd> Close tab
+        </div>
+      </div>
+    </div>
+
+    <script src="search.js"></script>
+  </body>
+</html>

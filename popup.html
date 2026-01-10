@@ -33,28 +33,14 @@
         <div id="statusMessage" class="status-message" role="status"></div>
       </section>
 
-      <section class="shortcut-hint" id="shortcutHint" style="--delay: 0.1s">
-        <!-- State A: No shortcut set -->
-        <div class="shortcut-setup" id="shortcutSetup">
-          <svg class="shortcut-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <rect x="2" y="4" width="20" height="16" rx="2" />
-            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M6 16h.01M18 16h.01" />
-          </svg>
-          <div class="shortcut-setup-text">
-            <span>Set up search shortcut</span>
-            <small>Click to configure →</small>
-          </div>
-        </div>
-        <!-- State B: Shortcut is set -->
-        <div class="shortcut-display hidden" id="shortcutDisplay">
-          <svg class="shortcut-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <section class="search-action" style="--delay: 0.1s">
+        <button id="searchButton" class="btn btn-secondary btn-large" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
             <circle cx="11" cy="11" r="8" />
-            <path d="M21 21l-4.35-4.35" />
+            <path d="M21 21l-4.35-4.35" stroke-linecap="round" />
           </svg>
-          <span class="shortcut-text">
-            <kbd id="shortcutKey">Ctrl+Shift+F</kbd> to search
-          </span>
-        </div>
+          <span class="btn-text">Search tabs</span>
+        </button>
       </section>
     </div>
 

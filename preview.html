@@ -7,9 +7,10 @@
     <link rel="stylesheet" href="styles/main.css" />
     <style>
       body {
-        width: 480px;
+        width: 100%;
+        min-width: 360px;
+        max-width: 100%;
         min-height: 400px;
-        max-height: 600px;
       }
 
       .preview-shell {
@@ -176,6 +177,56 @@
         color: var(--muted);
       }
 
+      .progress-steps {
+        margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        text-align: left;
+      }
+
+      .progress-step {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted-2);
+        transition: color 0.2s;
+      }
+
+      .progress-step.active {
+        color: var(--accent);
+      }
+
+      .progress-step.done {
+        color: #22c55e;
+      }
+
+      .step-icon {
+        font-size: 14px;
+      }
+
+      .progress-step.active .step-icon::after {
+        content: "◐";
+      }
+
+      .progress-step.active .step-icon {
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+
+      .progress-step.done .step-icon::after {
+        content: "●";
+      }
+
+      .progress-step:not(.active):not(.done) .step-icon::after {
+        content: "○";
+      }
+
+      .step-icon::after {
+        content: "○";
+      }
+
       .preview-error {
         padding: 20px;
         text-align: center;
@@ -201,7 +252,25 @@
 
       <div id="loadingState" class="preview-loading">
         <div class="spinner"></div>
-        <p>Analyzing tabs...</p>
+        <p id="loadingText">Analyzing tabs...</p>
+        <div class="progress-steps">
+          <div class="progress-step" id="step1">
+            <span class="step-icon"></span>
+            <span class="step-text">Collecting tabs</span>
+          </div>
+          <div class="progress-step" id="step2">
+            <span class="step-icon"></span>
+            <span class="step-text">Analyzing tabs (AI)</span>
+          </div>
+          <div class="progress-step" id="step3">
+            <span class="step-icon"></span>
+            <span class="step-text">Creating groups (AI)</span>
+          </div>
+          <div class="progress-step" id="step4">
+            <span class="step-icon"></span>
+            <span class="step-text">Organizing results</span>
+          </div>
+        </div>
       </div>
 
       <div id="errorState" class="preview-error hidden">
