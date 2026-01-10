@@ -1055,6 +1055,9 @@ body.search {
   min-height: auto;
   width: 100%;
   margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
 }
 
 .search-shell {
@@ -1062,6 +1065,9 @@ body.search {
   flex-direction: column;
   height: 100vh;
   padding: 16px;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
 }
 
 .search-shell .search-header {
