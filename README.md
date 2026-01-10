@@ -8,6 +8,19 @@
 </a>
 </p>
 
+## Installation
+
+### From Source
+
+1. Clone or download this repository
+   ```bash
+   git clone https://github.com/tang-hi/smarTab.git
+   ```
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable "Developer mode" in the top right corner
+4. Click "Load unpacked"
+5. Select the `smarTab` folder
+
 ## Demo
 
 See SmarTab in action:
