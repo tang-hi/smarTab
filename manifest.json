@@ -1,12 +1,22 @@
 {
   "manifest_version": 3,
   "name": "smartTab",
-  "version": "1.3",
-  "description": "AI-powered browser tab grouping with session management and templates.",
+  "version": "1.4",
+  "description": "AI-powered browser tab grouping with smart search.",
   "permissions": [
     "tabs",
     "tabGroups",
-    "storage"
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["styles/search-overlay.css"],
+      "matches": ["<all_urls>"]
+    }
   ],
   "background": {
     "service_worker": "background.js",
@@ -29,12 +39,12 @@
       },
       "description": "Group all tabs using AI"
     },
-    "save-session": {
+    "search-tabs": {
       "suggested_key": {
-        "default": "Ctrl+Shift+S",
-        "mac": "Command+Shift+S"
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
       },
-      "description": "Save current session"
+      "description": "Search tabs"
     }
   }
 }

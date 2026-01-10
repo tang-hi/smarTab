@@ -66,7 +66,7 @@ body::after {
 
 body.popup {
   min-height: auto;
-  width: 360px;
+  width: 320px;
 }
 
 body.settings {
@@ -74,8 +74,12 @@ body.settings {
 }
 
 .popup-shell {
-  width: 360px;
-  padding: 18px 18px 22px;
+  width: 320px;
+  padding: 20px;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .settings-shell {
@@ -927,4 +931,114 @@ kbd {
     flex-direction: column;
     align-items: flex-start;
   }
+}
+
+/* ==========================================
+   New Popup Styles
+   ========================================== */
+
+.group-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 32px 0;
+  animation: rise 0.6s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+.btn-large {
+  padding: 16px 48px;
+  font-size: 16px;
+  border-radius: 16px;
+}
+
+.shortcut-hint {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  animation: rise 0.6s ease both;
+  animation-delay: var(--delay, 0s);
+}
+
+.shortcut-setup,
+.shortcut-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.shortcut-setup:hover {
+  opacity: 0.8;
+}
+
+.shortcut-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.shortcut-setup-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shortcut-setup-text span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.shortcut-setup-text small {
+  font-size: 11px;
+  color: var(--muted-2);
+}
+
+.shortcut-text {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.shortcut-text kbd {
+  margin-right: 4px;
+}
+
+/* ==========================================
+   Settings View Toggle
+   ========================================== */
+
+.settings-view {
+  animation: rise 0.4s ease both;
+}
+
+.advanced-link {
+  width: 100%;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  margin-top: 8px;
+}
+
+.advanced-link:hover {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 8px 8px;
+  margin-bottom: 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.back-link:hover {
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--ink);
 }

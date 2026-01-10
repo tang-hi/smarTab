@@ -177,7 +177,180 @@ export async function makeStructuredRequest(systemPrompt, userPrompt, responseSc
 }
 
 // ==========================================
-// Tab Grouping Suggestions
+// Two-Stage Tab Grouping (New Design)
+// ==========================================
+
+/**
+ * Stage 1: Tab Understanding
+ * Analyzes each tab to understand its content and user intent
+ */
+export async function analyzeTabsUnderstanding(tabs) {
+  const tabsInfo = extractTabInfo(tabs);
+
+  const systemPrompt = `You are a browser tab analysis assistant. Your task is to understand each tab's content and the user's intent for opening it.
+
+For each tab, provide:
+1. description: A brief description of what the page is about (1-2 sentences)
+2. intent: Why the user likely opened this tab (what task/goal)
+3. keywords: 2-4 keywords for grouping reference
+
+Output JSON format:
+{
+  "tabs": [
+    {
+      "index": 0,
+      "description": "React framework source code repository",
+      "intent": "Learning/developing frontend project",
+      "keywords": ["development", "frontend", "React"]
+    }
+  ]
+}`;
+
+  const userPrompt = `Analyze the following browser tabs:
+${JSON.stringify(tabsInfo, null, 2)}`;
+
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      tabs: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            index: { type: "NUMBER" },
+            description: { type: "STRING" },
+            intent: { type: "STRING" },
+            keywords: { type: "ARRAY", items: { type: "STRING" } }
+          },
+          required: ["index", "description", "intent", "keywords"]
+        }
+      }
+    }
+  };
+
+  return await makeStructuredRequest(
+    systemPrompt,
+    userPrompt,
+    response_format,
+    (result) => Array.isArray(result?.tabs) && result.tabs.length > 0
+  );
+}
+
+/**
+ * Stage 2: Smart Grouping
+ * Uses tab understanding to create intelligent groups
+ */
+export async function createSmartGroups(tabs, tabUnderstanding, customGroupingInstructions) {
+  const tabsInfo = extractTabInfo(tabs);
+
+  const systemPrompt = `You are a browser tab grouping assistant. Using the tab analysis provided, create smart groupings.
+
+**Grouping Strategy (by priority)**:
+1. **Group by task/intent first** - If you can identify a user task, group tabs by that task
+   - Same task may involve different websites
+   - Same website may belong to different tasks
+   - Examples: "📊 Data Analysis", "🛒 Shopping", "📖 Learning Rust"
+
+2. **Group by domain/category** - If no clear task, but multiple similar tabs exist
+   - Examples: "GitHub", "📺 YouTube", "📰 News"
+
+3. **Fallback** - If tabs have no clear relationship
+   - Put in "📌 Other" or leave ungrouped
+
+**Important Rules**:
+- Don't force connections that don't exist
+- Better to have fewer groups than weird ones
+- Don't create groups with only 1 tab (except truly standalone ones)
+- If only 1-2 tabs fit a category, consider putting them in "Other"
+
+**Group Name Format**:
+- Short (2-4 words + emoji)
+- Task groups: describe the task (🔧 Fix Bug, 📝 Write Report)
+- Domain groups: site name or category (GitHub, 📺 Videos)
+
+**Color Semantics**:
+- blue: Work, development, tech
+- green: Learning, reading, docs
+- yellow: Todo, temporary, read later
+- red: Important, urgent
+- pink: Entertainment, social, shopping
+- purple: Creative, design, inspiration
+- cyan: Tools, reference, resources
+- grey: Other, misc
+
+Output JSON format:
+{
+  "groups": [
+    {
+      "group_name": "⚛️ React Dev",
+      "group_color": "blue",
+      "tab_indices": [0, 1],
+      "reasoning": "Both are React development resources"
+    }
+  ]
+}`;
+
+  const userPrompt = `Create groupings based on these tabs and their analysis:
+
+Tabs:
+${JSON.stringify(tabsInfo, null, 2)}
+
+Tab Analysis:
+${JSON.stringify(tabUnderstanding.tabs, null, 2)}
+
+${customGroupingInstructions ? `Custom Instructions: ${customGroupingInstructions}` : ''}`;
+
+  const response_format = {
+    type: "OBJECT",
+    properties: {
+      groups: {
+        type: "ARRAY",
+        items: {
+          type: "OBJECT",
+          properties: {
+            group_name: { type: "STRING" },
+            group_color: { type: "STRING" },
+            tab_indices: { type: "ARRAY", items: { type: "NUMBER" } },
+            reasoning: { type: "STRING" }
+          },
+          required: ["group_name", "group_color", "tab_indices", "reasoning"]
+        }
+      }
+    }
+  };
+
+  return await makeStructuredRequest(
+    systemPrompt,
+    userPrompt,
+    response_format,
+    validateGroupingSuggestions
+  );
+}
+
+/**
+ * Two-Stage Grouping Pipeline
+ * Combines tab understanding and smart grouping
+ */
+export async function requestTwoStageGrouping(tabs, customGroupingInstructions) {
+  // Stage 1: Understand tabs
+  console.log('Stage 1: Analyzing tabs...');
+  const tabUnderstanding = await analyzeTabsUnderstanding(tabs);
+  console.log('Tab understanding:', tabUnderstanding);
+
+  // Stage 2: Create groups
+  console.log('Stage 2: Creating groups...');
+  const groupingSuggestions = await createSmartGroups(tabs, tabUnderstanding, customGroupingInstructions);
+  console.log('Grouping suggestions:', groupingSuggestions);
+
+  // Attach understanding for preview UI
+  return {
+    ...groupingSuggestions,
+    tabUnderstanding: tabUnderstanding.tabs
+  };
+}
+
+// ==========================================
+// Legacy Tab Grouping Suggestions (kept for compatibility)
 // ==========================================
 export async function requestGroupingSuggestions(tabs, maxTabsPerGroup, customGroupingInstructions) {
   const tabsInfo = extractTabInfo(tabs);

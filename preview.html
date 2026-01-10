@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview Grouping - SmarTab</title>
+    <link rel="stylesheet" href="styles/main.css" />
+    <style>
+      body {
+        width: 480px;
+        min-height: 400px;
+        max-height: 600px;
+      }
+
+      .preview-shell {
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .preview-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .preview-header h1 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0;
+      }
+
+      .preview-close {
+        background: none;
+        border: none;
+        padding: 8px;
+        cursor: pointer;
+        color: var(--muted);
+        border-radius: 8px;
+        transition: background 0.2s;
+      }
+
+      .preview-close:hover {
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .preview-summary {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 16px;
+      }
+
+      .preview-groups {
+        flex: 1;
+        overflow-y: auto;
+        margin-bottom: 16px;
+      }
+
+      .preview-group {
+        background: var(--surface);
+        border-radius: var(--radius-md);
+        border: 1px solid var(--border);
+        padding: 14px;
+        margin-bottom: 12px;
+        animation: rise 0.4s ease both;
+      }
+
+      .preview-group:nth-child(1) { animation-delay: 0.05s; }
+      .preview-group:nth-child(2) { animation-delay: 0.1s; }
+      .preview-group:nth-child(3) { animation-delay: 0.15s; }
+      .preview-group:nth-child(4) { animation-delay: 0.2s; }
+      .preview-group:nth-child(5) { animation-delay: 0.25s; }
+
+      .group-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      .group-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .group-color.blue { background: #3b82f6; }
+      .group-color.green { background: #22c55e; }
+      .group-color.yellow { background: #eab308; }
+      .group-color.red { background: #ef4444; }
+      .group-color.pink { background: #ec4899; }
+      .group-color.purple { background: #a855f7; }
+      .group-color.cyan { background: #06b6d4; }
+      .group-color.grey { background: #64748b; }
+
+      .group-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .group-tabs {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 10px 20px;
+      }
+
+      .group-tabs li {
+        font-size: 12px;
+        color: var(--muted);
+        padding: 4px 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .group-tabs li::before {
+        content: "•";
+        color: var(--muted-2);
+      }
+
+      .tab-favicon {
+        width: 14px;
+        height: 14px;
+        border-radius: 3px;
+      }
+
+      .group-reasoning {
+        font-size: 11px;
+        color: var(--muted-2);
+        padding: 8px 10px;
+        background: var(--surface-2);
+        border-radius: 8px;
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+      }
+
+      .group-reasoning::before {
+        content: "💬";
+        flex-shrink: 0;
+      }
+
+      .preview-actions {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+      }
+
+      .preview-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        text-align: center;
+      }
+
+      .preview-loading .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .preview-loading p {
+        margin-top: 16px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .preview-error {
+        padding: 20px;
+        text-align: center;
+      }
+
+      .preview-error p {
+        color: #b91c1c;
+        margin-bottom: 16px;
+      }
+    </style>
+  </head>
+
+  <body class="popup">
+    <div class="preview-shell">
+      <header class="preview-header">
+        <h1>Preview</h1>
+        <button class="preview-close" id="closeButton" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <div id="loadingState" class="preview-loading">
+        <div class="spinner"></div>
+        <p>Analyzing tabs...</p>
+      </div>
+
+      <div id="errorState" class="preview-error hidden">
+        <p id="errorMessage">Something went wrong.</p>
+        <button class="btn btn-secondary" id="retryButton">Try Again</button>
+      </div>
+
+      <div id="previewContent" class="hidden">
+        <p class="preview-summary" id="previewSummary">Found 0 groups for 0 tabs</p>
+        <div class="preview-groups" id="previewGroups"></div>
+        <div class="preview-actions">
+          <button class="btn btn-ghost" id="cancelButton">Cancel</button>
+          <button class="btn btn-primary" id="applyButton">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="preview.js" type="module"></script>
+  </body>
+</html>

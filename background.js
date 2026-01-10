@@ -2,82 +2,21 @@
 // SmarTab Background Service Worker
 // Main Entry Point
 // ==========================================
-import { getConfig, getDelays, DEFAULTS } from './modules/config.js';
+import { getConfig, DEFAULTS } from './modules/config.js';
 import {
   requestGroupingSuggestions,
-  handleLargeBatchTabGrouping
+  handleLargeBatchTabGrouping,
+  requestTwoStageGrouping
 } from './modules/ai.js';
-import {
-  focusTab,
-  removeGroup,
-  handleNewTab,
-  autoGroupTab,
-  regroupExistingTab,
-  cleanupPendingTab,
-  pendingTabs
-} from './modules/tabs.js';
-import {
-  pushUndoAction,
-  undoAction,
-  getUndoHistory,
-  saveSession,
-  getSessions,
-  restoreSession,
-  deleteSession,
-  renameSession,
-  getTemplates,
-  applyTemplate,
-  saveCurrentAsTemplate,
-  deleteTemplate
-} from './modules/features.js';
+import { focusTab } from './modules/tabs.js';
 
 console.log('Background service worker initialized');
 
 // ==========================================
-// Undo Action Helper (passed to tabs module)
-// ==========================================
-async function storeLastAutoGroupAction(action) {
-  return pushUndoAction(action);
-}
-
-// ==========================================
 // Event Listeners
 // ==========================================
+// Auto-collapse other groups when switching tabs
 chrome.tabs.onActivated.addListener(focusTab);
-chrome.tabGroups.onRemoved.addListener(removeGroup);
-chrome.tabs.onCreated.addListener((tab) => handleNewTab(tab, storeLastAutoGroupAction));
-chrome.tabs.onRemoved.addListener(cleanupPendingTab);
-
-// Handle tab updates
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // Handle URL changes for new tabs
-  if (changeInfo.url && tab.url.startsWith('http')) {
-    if (!pendingTabs.has(tabId) && tab.groupId === -1) {
-      handleNewTab(tab, storeLastAutoGroupAction);
-    }
-  }
-
-  // Handle load complete for pending tabs
-  if (changeInfo.status === 'complete' && pendingTabs.has(tabId)) {
-    autoGroupTab(tabId, storeLastAutoGroupAction);
-    return;
-  }
-
-  // Handle URL change for grouped tabs (regrouping)
-  if (changeInfo.url && tab.url.startsWith('http') && tab.groupId !== -1) {
-    const delays = await getDelays();
-    setTimeout(async () => {
-      try {
-        const updatedTab = await chrome.tabs.get(tabId);
-        if (updatedTab.groupId !== -1 && updatedTab.url === tab.url) {
-          regroupExistingTab(updatedTab);
-        }
-      } catch (error) {
-        console.log(`Tab ${tabId} no longer exists for regrouping`);
-      }
-    }, delays.regroupDelay);
-  }
-});
 
 // ==========================================
 // Keyboard Shortcuts (Commands)
@@ -87,72 +26,47 @@ chrome.commands.onCommand.addListener(async (command) => {
 
   if (command === 'group-tabs') {
     try {
-      const settings = await getConfig([
-        'currentWindowOnly',
-        'includeGroupedTabs',
-        'excludePinnedTabs',
-        'maxTabsPerGroup',
-        'customGroupingInstructions',
-        'useAdvancedGrouping'
-      ]);
+      // Open preview window
+      const previewUrl = chrome.runtime.getURL('preview.html');
+      const currentWindow = await chrome.windows.getCurrent();
 
-      const queryOptions = {};
-      if (settings.currentWindowOnly !== false) {
-        queryOptions.currentWindow = true;
-      }
+      const width = 480;
+      const height = 600;
+      const left = Math.round(currentWindow.left + (currentWindow.width - width) / 2);
+      const top = Math.round(currentWindow.top + (currentWindow.height - height) / 2);
 
-      let tabs = await chrome.tabs.query(queryOptions);
-
-      // Apply filters
-      tabs = tabs.filter(tab => tab.url && tab.url.startsWith('http'));
-      if (!settings.includeGroupedTabs) {
-        tabs = tabs.filter(tab => tab.groupId === -1);
-      }
-      if (settings.excludePinnedTabs) {
-        tabs = tabs.filter(tab => !tab.pinned);
-      }
-
-      if (tabs.length === 0) {
-        console.log('No tabs to group');
-        return;
-      }
-
-      const maxTabsPerGroup = settings.maxTabsPerGroup ?? DEFAULTS.maxTabsPerGroup;
-      const customGroupingInstructions = settings.customGroupingInstructions ?? '';
-      const useAdvanced = settings.useAdvancedGrouping || tabs.length >= 30;
-      const handler = useAdvanced ? handleLargeBatchTabGrouping : requestGroupingSuggestions;
-
-      const suggestions = await handler(tabs, maxTabsPerGroup, customGroupingInstructions);
-
-      // Apply grouping
-      const activeTab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
-
-      for (const group of suggestions.groups) {
-        const tabIds = group.tab_indices.map(idx => tabs[idx]?.id).filter(Boolean);
-        if (tabIds.length === 0) continue;
-
-        const groupId = await chrome.tabs.group({ tabIds });
-        const hasActiveTab = activeTab && tabIds.includes(activeTab.id);
-
-        await chrome.tabGroups.update(groupId, {
-          title: group.group_name,
-          color: group.group_color,
-          collapsed: !hasActiveTab
-        });
-      }
-
-      console.log(`Grouped ${tabs.length} tabs via keyboard shortcut`);
+      await chrome.windows.create({
+        url: previewUrl,
+        type: 'popup',
+        width: width,
+        height: height,
+        left: left,
+        top: top,
+        focused: true
+      });
     } catch (error) {
-      console.error('Error grouping tabs via shortcut:', error);
+      console.error('Error opening preview via shortcut:', error);
     }
   }
 
-  if (command === 'save-session') {
-    const result = await saveSession();
-    if (result.ok) {
-      console.log('Session saved:', result.session.name);
-    } else {
-      console.error('Failed to save session:', result.error);
+  if (command === 'search-tabs') {
+    try {
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!activeTab || !activeTab.url || activeTab.url.startsWith('chrome://')) {
+        console.log('Cannot inject into this page');
+        return;
+      }
+
+      // Inject content script if not already injected
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        files: ['search-overlay.js']
+      });
+
+      // Toggle the search overlay
+      chrome.tabs.sendMessage(activeTab.id, { action: 'toggleSearch' });
+    } catch (error) {
+      console.error('Error opening search overlay:', error);
     }
   }
 });
@@ -161,28 +75,70 @@ chrome.commands.onCommand.addListener(async (command) => {
 // Message Handlers
 // ==========================================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  // Grouping suggestions
-  if (request.action === 'getGroupingSuggestions') {
-    const { tabs, maxTabsPerGroup, customGroupingInstructions } = request;
-
-    getConfig(['useAdvancedGrouping', 'excludePinnedTabs']).then(async (settings) => {
-      let filteredTabs = [...tabs];
-
-      if (settings.excludePinnedTabs) {
-        filteredTabs = filteredTabs.filter(tab => !tab.pinned);
-        console.log(`Filtered out pinned tabs, ${tabs.length - filteredTabs.length} tabs excluded`);
-      }
-
-      const useAdvanced = settings.useAdvancedGrouping || filteredTabs.length >= 30;
-      const handler = useAdvanced ? handleLargeBatchTabGrouping : requestGroupingSuggestions;
-
-      console.log(`Handling grouping suggestions: ${filteredTabs.length} tabs, using ${useAdvanced ? 'advanced' : 'standard'} mode`);
-
+  // Get all tabs for search overlay
+  if (request.action === 'getAllTabs') {
+    (async () => {
       try {
-        const groupingSuggestions = await handler(filteredTabs, maxTabsPerGroup, customGroupingInstructions);
+        const tabs = await chrome.tabs.query({});
+        const groups = await chrome.tabGroups.query({});
+
+        // Convert groups array to object keyed by id
+        const groupsMap = {};
+        groups.forEach(g => {
+          groupsMap[g.id] = { title: g.title, color: g.color };
+        });
+
+        sendResponse({ tabs, groups: groupsMap });
+      } catch (error) {
+        console.error('Error getting tabs:', error);
+        sendResponse({ tabs: [], groups: {} });
+      }
+    })();
+    return true;
+  }
+
+  // Switch to a specific tab
+  if (request.action === 'switchToTab') {
+    (async () => {
+      try {
+        await chrome.windows.update(request.windowId, { focused: true });
+        await chrome.tabs.update(request.tabId, { active: true });
+        sendResponse({ ok: true });
+      } catch (error) {
+        console.error('Error switching tab:', error);
+        sendResponse({ ok: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Close a specific tab
+  if (request.action === 'closeTab') {
+    (async () => {
+      try {
+        await chrome.tabs.remove(request.tabId);
+        sendResponse({ ok: true });
+      } catch (error) {
+        console.error('Error closing tab:', error);
+        sendResponse({ ok: false, error: error.message });
+      }
+    })();
+    return true;
+  }
+
+  // Two-stage grouping (new)
+  if (request.action === 'getTwoStageGrouping') {
+    const { tabs } = request;
+
+    getConfig(['customGroupingInstructions']).then(async (settings) => {
+      try {
+        const groupingSuggestions = await requestTwoStageGrouping(
+          tabs,
+          settings.customGroupingInstructions || ''
+        );
         sendResponse({ groupingSuggestions });
       } catch (error) {
-        console.error('Error getting grouping suggestions:', error);
+        console.error('Error getting two-stage grouping:', error);
         sendResponse({ error: error.message });
       }
     });
@@ -190,61 +146,73 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
-  // Undo actions
-  if (request.action === 'undoAutoGroup') {
-    undoAction(request.actionId).then(sendResponse);
+  // Apply grouping (from preview window)
+  if (request.action === 'applyGrouping') {
+    const { tabs, groupingSuggestions } = request;
+
+    (async () => {
+      try {
+        const activeTab = (await chrome.tabs.query({ active: true, currentWindow: true }))[0];
+
+        for (const group of groupingSuggestions.groups) {
+          let tabIndices = group.tab_indices;
+          if (typeof tabIndices === 'string') {
+            tabIndices = JSON.parse(tabIndices);
+          }
+
+          const tabIds = tabIndices.map(index => {
+            const tab = tabs[index];
+            return tab ? tab.id : null;
+          }).filter(id => id !== null);
+
+          if (tabIds.length === 0) continue;
+
+          const groupId = await chrome.tabs.group({ tabIds });
+          const hasActiveTab = activeTab && tabIds.includes(activeTab.id);
+
+          await chrome.tabGroups.update(groupId, {
+            title: group.group_name,
+            color: group.group_color,
+            collapsed: !hasActiveTab
+          });
+        }
+
+        sendResponse({ ok: true });
+      } catch (error) {
+        console.error('Error applying grouping:', error);
+        sendResponse({ ok: false, error: error.message });
+      }
+    })();
+
     return true;
   }
 
-  if (request.action === 'getUndoHistory') {
-    getUndoHistory().then(history => sendResponse({ history }));
-    return true;
-  }
+  // Legacy grouping suggestions (for compatibility)
+  if (request.action === 'getGroupingSuggestions') {
+    const { tabs, customGroupingInstructions } = request;
 
-  // Session management
-  if (request.action === 'saveSession') {
-    saveSession(request.name).then(sendResponse);
-    return true;
-  }
+    getConfig(['excludePinnedTabs']).then(async (settings) => {
+      let filteredTabs = [...tabs];
 
-  if (request.action === 'getSessions') {
-    getSessions().then(sessions => sendResponse({ sessions }));
-    return true;
-  }
+      if (settings.excludePinnedTabs) {
+        filteredTabs = filteredTabs.filter(tab => !tab.pinned);
+        console.log(`Filtered out pinned tabs, ${tabs.length - filteredTabs.length} tabs excluded`);
+      }
 
-  if (request.action === 'restoreSession') {
-    restoreSession(request.sessionId, request.inNewWindow).then(sendResponse);
-    return true;
-  }
+      const useAdvanced = filteredTabs.length >= 30;
+      const handler = useAdvanced ? handleLargeBatchTabGrouping : requestGroupingSuggestions;
 
-  if (request.action === 'deleteSession') {
-    deleteSession(request.sessionId).then(sendResponse);
-    return true;
-  }
+      console.log(`Handling grouping suggestions: ${filteredTabs.length} tabs, using ${useAdvanced ? 'advanced' : 'standard'} mode`);
 
-  if (request.action === 'renameSession') {
-    renameSession(request.sessionId, request.newName).then(sendResponse);
-    return true;
-  }
+      try {
+        const groupingSuggestions = await handler(filteredTabs, 10, customGroupingInstructions);
+        sendResponse({ groupingSuggestions });
+      } catch (error) {
+        console.error('Error getting grouping suggestions:', error);
+        sendResponse({ error: error.message });
+      }
+    });
 
-  // Template management
-  if (request.action === 'getTemplates') {
-    getTemplates().then(templates => sendResponse({ templates }));
-    return true;
-  }
-
-  if (request.action === 'applyTemplate') {
-    applyTemplate(request.templateId).then(sendResponse);
-    return true;
-  }
-
-  if (request.action === 'saveCurrentAsTemplate') {
-    saveCurrentAsTemplate(request.name).then(sendResponse);
-    return true;
-  }
-
-  if (request.action === 'deleteTemplate') {
-    deleteTemplate(request.templateId).then(sendResponse);
     return true;
   }
 });

@@ -24,225 +24,174 @@
         </div>
       </header>
 
-      <div class="settings-grid">
-        <section class="card section" style="--delay: 0.05s">
-          <h2>AI Provider</h2>
-          <p class="section-desc">Pick your provider, model, and API key to power grouping.</p>
-          <div class="field">
-            <label for="aiProvider">Provider</label>
-            <select id="aiProvider">
-              <option value="openai">OpenAI</option>
-              <option value="gemini">Gemini</option>
-              <option value="custom">Custom (OpenAI-compatible)</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="modelName">Model</label>
-            <div class="field-row">
-              <select id="modelName" data-model-select></select>
+      <!-- Main Settings View -->
+      <div class="settings-view" id="mainSettings">
+        <div class="settings-grid">
+          <section class="card section" style="--delay: 0.05s">
+            <h2>AI Provider</h2>
+            <p class="section-desc">Pick your provider, model, and API key to power grouping.</p>
+            <div class="field">
+              <label for="aiProvider">Provider</label>
+              <select id="aiProvider">
+                <option value="gemini">Gemini</option>
+                <option value="openai">OpenAI</option>
+                <option value="custom">Custom (OpenAI-compatible)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="apiKey">API Key</label>
+              <div class="field-row">
+                <input type="password" id="apiKey" placeholder="Paste your API key" />
+                <button class="btn btn-secondary" type="button" id="testConnectionButton">
+                  <span class="btn-spinner"></span>
+                  <span class="btn-text">Test</span>
+                </button>
+              </div>
+              <div id="connectionStatus" class="field-hint connection-status"></div>
+            </div>
+            <div class="field">
+              <label for="modelName">Model</label>
+              <div class="field-row">
+                <select id="modelName" data-model-select></select>
+                <input
+                  type="text"
+                  id="modelNameCustom"
+                  class="hidden"
+                  placeholder="e.g. openrouter/auto"
+                />
+              </div>
+              <div id="modelHint" class="field-hint"></div>
+            </div>
+            <div class="field hidden" id="customApiBaseUrlField">
+              <label for="customApiBaseUrl">API base URL</label>
               <input
                 type="text"
-                id="modelNameCustom"
-                class="is-hidden"
-                placeholder="e.g. openrouter/auto"
+                id="customApiBaseUrl"
+                placeholder="https://openrouter.ai/api/v1"
               />
-              <button class="btn btn-secondary" type="button" id="testConnectionButton">
-                <span class="btn-spinner"></span>
-                <span class="btn-text">Test connection</span>
+              <div class="field-hint">Provide the OpenAI-compatible base URL.</div>
+            </div>
+            <div class="security-note">Requests go directly to the provider you select.</div>
+          </section>
+
+          <section class="card section" style="--delay: 0.1s">
+            <h2>Behavior</h2>
+            <p class="section-desc">Control how SmarTab behaves when you browse.</p>
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span>Auto-collapse other groups</span>
+                <small>When you switch tabs, collapse other groups automatically.</small>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="closeOtherGroups" />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="card section" style="--delay: 0.15s">
+            <h2>Advanced</h2>
+            <p class="section-desc">Tab filters, custom instructions, and shortcuts.</p>
+            <button class="btn btn-ghost advanced-link" id="openAdvancedSettings" type="button">
+              <span>Advanced Settings</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                <path d="M9 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </section>
+        </div>
+      </div>
+
+      <!-- Advanced Settings View -->
+      <div class="settings-view hidden" id="advancedSettings">
+        <div class="settings-grid">
+          <section class="card section" style="--delay: 0.05s">
+            <button class="btn btn-ghost back-link" id="backToMain" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18">
+                <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <span>Back to Settings</span>
+            </button>
+            <h2>Tab Filters</h2>
+            <p class="section-desc">Control which tabs participate in grouping.</p>
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span>Exclude pinned tabs</span>
+                <small>Keep pinned tabs out of automatic grouping.</small>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="excludePinnedTabs" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span>Exclude already grouped tabs</span>
+                <small>Don't regroup tabs that are already in groups.</small>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="excludeGroupedTabs" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span>Current window only</span>
+                <small>Ignore tabs in other windows.</small>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="currentWindowOnly" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div class="toggle-text">
+                <span>Exclude frozen tabs</span>
+                <small>Skip discarded/suspended tabs.</small>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="excludeFrozenTabs" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="card section" style="--delay: 0.1s">
+            <h2>Custom Instructions</h2>
+            <p class="section-desc">Give AI additional context for better grouping.</p>
+            <div class="field">
+              <label for="customGroupingInstructions">Instructions (optional)</label>
+              <textarea
+                id="customGroupingInstructions"
+                placeholder="Example: Always group GitHub tabs together. Separate work docs from tutorials."
+              ></textarea>
+            </div>
+          </section>
+
+          <section class="card section" style="--delay: 0.15s">
+            <h2>Keyboard Shortcuts</h2>
+            <p class="section-desc">Quick actions from anywhere in Chrome.</p>
+            <div class="shortcut-row">
+              <div class="shortcut-info">
+                <span class="shortcut-name">Group all tabs</span>
+                <span class="shortcut-desc">Trigger AI grouping</span>
+              </div>
+              <kbd id="groupShortcut">Ctrl+Shift+G</kbd>
+            </div>
+            <div class="shortcut-row">
+              <div class="shortcut-info">
+                <span class="shortcut-name">Search tabs</span>
+                <span class="shortcut-desc">Open tab search overlay</span>
+              </div>
+              <kbd id="searchShortcut">Ctrl+Shift+F</kbd>
+            </div>
+            <p class="field-hint" style="margin-top: 12px;">
+              <button class="btn btn-ghost btn-sm" id="openShortcutsLink" type="button">
+                Customize shortcuts in Chrome settings →
               </button>
-            </div>
-            <div id="modelHint" class="field-hint"></div>
-            <div id="connectionStatus" class="field-hint connection-status"></div>
-          </div>
-          <div class="field">
-            <label for="apiKey">API key</label>
-            <input type="password" id="apiKey" placeholder="Paste your API key" />
-            <div class="field-hint">Stored locally in Chrome sync storage.</div>
-          </div>
-          <div class="field is-hidden" id="customApiBaseUrlField">
-            <label for="customApiBaseUrl">API base URL</label>
-            <input
-              type="text"
-              id="customApiBaseUrl"
-              placeholder="https://openrouter.ai/api/v1"
-            />
-            <div class="field-hint">Provide the OpenAI-compatible base URL.</div>
-          </div>
-          <div class="security-note">Requests go directly to the provider you select.</div>
-        </section>
-
-        <section class="card section" style="--delay: 0.1s">
-          <h2>Automation</h2>
-          <p class="section-desc">Let SmarTab keep groups tidy while you browse.</p>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Auto-collapse other groups</span>
-              <small>Keep only the active group expanded.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="closeOtherGroups" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Auto-group new tabs</span>
-              <small>Group fresh tabs after a short delay.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="autoGroupNewTabs" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Auto-regroup on navigation</span>
-              <small>Re-check a tab when it moves to new content.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="autoRegroupTabs" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </section>
-
-        <section class="card section" style="--delay: 0.15s">
-          <h2>Tab Selection</h2>
-          <p class="section-desc">Control which tabs participate in grouping.</p>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Only active tab</span>
-              <small>Limit grouping to the focused tab.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="onlyIncludeActiveTab" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Include grouped tabs</span>
-              <small>Ungroup and regroup existing groups.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="includeGroupedTabs" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Current window only</span>
-              <small>Ignore tabs in other windows.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="currentWindowOnly" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Include frozen tabs</span>
-              <small>Include discarded/suspended tabs.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="includeFrozenTabs" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Exclude pinned tabs</span>
-              <small>Keep pinned tabs out of automatic grouping.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="excludePinnedTabs" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </section>
-
-        <section class="card section" style="--delay: 0.2s">
-          <h2>Grouping Rules</h2>
-          <p class="section-desc">Shape the clustering behavior to match your flow.</p>
-          <div class="field-inline">
-            <label for="maxTabsPerGroup">Maximum tabs per group</label>
-            <input type="number" id="maxTabsPerGroup" min="2" max="20" value="8" />
-          </div>
-          <div class="field">
-            <label for="customGroupingInstructions">Custom grouping instructions</label>
-            <textarea
-              id="customGroupingInstructions"
-              placeholder="Example: Separate work docs from tutorials. Group shopping sites together."
-            ></textarea>
-          </div>
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <span>Use advanced grouping</span>
-              <small>Higher accuracy, slower on big tab sets.</small>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="useAdvancedGrouping" />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </section>
-
-        <section class="card section" id="sessions" style="--delay: 0.25s">
-          <h2>Sessions</h2>
-          <p class="section-desc">Save and restore your browser sessions.</p>
-          <div id="sessionsListSettings" class="sessions-list-settings">
-            <p class="empty-hint">No saved sessions yet.</p>
-          </div>
-        </section>
-
-        <section class="card section" id="templates" style="--delay: 0.3s">
-          <h2>Grouping Templates</h2>
-          <p class="section-desc">Create rule-based grouping without AI.</p>
-          <div id="templatesListSettings" class="templates-list-settings">
-            <p class="empty-hint">No templates yet. Save your current groups as a template from the popup.</p>
-          </div>
-        </section>
-
-        <section class="card section" style="--delay: 0.35s">
-          <h2>Advanced</h2>
-          <p class="section-desc">Fine-tune timing and behavior settings.</p>
-          <div class="field-inline">
-            <label for="autoGroupDelay">Auto-group delay (seconds)</label>
-            <input type="number" id="autoGroupDelay" min="5" max="60" value="15" />
-          </div>
-          <div class="field-inline">
-            <label for="regroupDelay">Regroup delay (seconds)</label>
-            <input type="number" id="regroupDelay" min="1" max="30" value="3" />
-          </div>
-          <div class="field-inline">
-            <label for="undoHistorySize">Undo history size</label>
-            <input type="number" id="undoHistorySize" min="1" max="50" value="10" />
-          </div>
-        </section>
-
-        <section class="card section" style="--delay: 0.4s">
-          <h2>Keyboard Shortcuts</h2>
-          <p class="section-desc">Quick actions from anywhere in Chrome.</p>
-          <div class="shortcut-row">
-            <div class="shortcut-info">
-              <span class="shortcut-name">Group all tabs</span>
-              <span class="shortcut-desc">Trigger AI grouping</span>
-            </div>
-            <kbd>Ctrl+Shift+G</kbd>
-          </div>
-          <div class="shortcut-row">
-            <div class="shortcut-info">
-              <span class="shortcut-name">Save session</span>
-              <span class="shortcut-desc">Save current tabs as session</span>
-            </div>
-            <kbd>Ctrl+Shift+S</kbd>
-          </div>
-          <p class="field-hint" style="margin-top: 12px;">
-            <a href="chrome://extensions/shortcuts" id="openShortcutsLink" style="color: var(--accent);">
-              Customize shortcuts in Chrome settings
-            </a>
-          </p>
-        </section>
+            </p>
+          </section>
+        </div>
       </div>
     </div>
 
