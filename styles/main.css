@@ -1052,12 +1052,12 @@ kbd {
    ========================================== */
 
 body.search {
-  min-height: auto;
+  min-height: 100vh;
   width: 100%;
   margin: 0;
   display: flex;
   justify-content: center;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .search-shell {
