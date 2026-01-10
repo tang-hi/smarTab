@@ -43,7 +43,7 @@ Automatically organize your tabs into logical groups using AI. SmarTab analyzes 
 Find any tab instantly with powerful search capabilities.
 
 - **Text search**: Match by tab title, URL, or group name
-- **Semantic search**: When using Gemini, search by meaning rather than exact keywords (e.g., search "shopping" to find Amazon, eBay tabs)
+- **Semantic search**: When using Gemini or Doubao, search by meaning rather than exact keywords (e.g., search "shopping" to find Amazon, eBay tabs)
 - **Keyboard navigation**: Use arrow keys to navigate, Enter to switch, Cmd/Ctrl+D to close
 - **Cross-window search**: Find tabs across all browser windows
 - **AI badge indicator**: Shows when semantic search is active
@@ -53,8 +53,7 @@ Find any tab instantly with powerful search capabilities.
 | Provider | Tab Grouping | Semantic Search |
 |----------|:------------:|:---------------:|
 | **Gemini** | Yes | Yes |
-| **OpenAI** | Yes | - |
-| **Doubao** | Yes | - |
+| **Doubao** | Yes | Yes |
 | **Custom** | Yes | - |
 
 **Direct API access**: All requests go directly to your chosen provider. No proxy, no relay, no data collection.
@@ -82,7 +81,7 @@ Find any tab instantly with powerful search capabilities.
 
 ### Semantic Search
 
-When Gemini is configured as your AI provider, semantic search is automatically enabled:
+When Gemini or Doubao is configured as your AI provider, semantic search is automatically enabled:
 
 - Search by concept rather than exact text
 - Find related tabs even without matching keywords
@@ -95,7 +94,7 @@ Access the settings page by clicking the gear icon in the popup.
 
 ### AI Provider Configuration
 
-- **Provider**: Choose between Gemini, OpenAI, Doubao, or Custom (OpenAI-compatible)
+- **Provider**: Choose between Gemini, Doubao, or Custom (OpenAI-compatible)
 - **API Key**: Your provider's API key (stored locally in browser)
 - **Model**: Select from available models (auto-fetched from provider)
 - **Custom API URL**: For OpenAI-compatible endpoints (e.g., OpenRouter)

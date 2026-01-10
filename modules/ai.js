@@ -15,7 +15,6 @@ import {
 // API Configuration Helpers
 // ==========================================
 function getDefaultModelForProvider(provider) {
-  if (provider === 'openai') return AI_MODELS.openai.default;
   if (provider === 'gemini') return AI_MODELS.gemini.default;
   if (provider === 'doubao') return AI_MODELS.doubao.default;
   return '';
@@ -24,13 +23,9 @@ function getDefaultModelForProvider(provider) {
 function normalizeModel(provider, model) {
   if (!model) return getDefaultModelForProvider(provider);
   if (provider === 'custom') return model;
+  // Doubao uses endpoint IDs (e.g., ep-xxxxx), not model names, so skip validation
+  if (provider === 'doubao') return model;
   if (provider === 'gemini' && !model.startsWith('gemini-')) {
-    return getDefaultModelForProvider(provider);
-  }
-  if (provider === 'openai' && model.startsWith('gemini-')) {
-    return getDefaultModelForProvider(provider);
-  }
-  if (provider === 'doubao' && !model.startsWith('doubao-')) {
     return getDefaultModelForProvider(provider);
   }
   return model;
@@ -52,7 +47,6 @@ export async function getAIConfig() {
   const settings = await getConfig([
     'aiProvider',
     'modelName',
-    'openaiModelName',
     'geminiModelName',
     'doubaoModelName',
     'customModelName',
@@ -61,19 +55,17 @@ export async function getAIConfig() {
     'customApiBaseUrl'
   ]);
 
-  const provider = settings.aiProvider === 'openai' || settings.aiProvider === 'custom' || settings.aiProvider === 'doubao'
+  const provider = settings.aiProvider === 'custom' || settings.aiProvider === 'doubao'
     ? settings.aiProvider
     : 'gemini';
 
   const apiKey = (settings.apiKey || settings.geminiApiKey || '').trim();
 
-  const modelFromProvider = provider === 'openai'
-    ? settings.openaiModelName
-    : provider === 'gemini'
-      ? settings.geminiModelName
-      : provider === 'doubao'
-        ? settings.doubaoModelName
-        : settings.customModelName;
+  const modelFromProvider = provider === 'gemini'
+    ? settings.geminiModelName
+    : provider === 'doubao'
+      ? settings.doubaoModelName
+      : settings.customModelName;
 
   const model = normalizeModel(provider, modelFromProvider || settings.modelName);
 
@@ -81,7 +73,7 @@ export async function getAIConfig() {
     ? normalizeBaseUrl(settings.customApiBaseUrl)
     : provider === 'doubao'
       ? AI_MODELS.doubao.baseUrl
-      : AI_MODELS.openai.baseUrl;
+      : '';
 
   return { provider, apiKey, model, baseUrl };
 }
@@ -117,6 +109,10 @@ async function requestGemini(config, systemPrompt, userPrompt, responseSchema) {
 
 async function requestOpenAI(config, systemPrompt, userPrompt) {
   const endpoint = `${config.baseUrl}/chat/completions`;
+  // Ensure "json" appears in messages (required by some APIs like Doubao when using json_object response_format)
+  const finalSystemPrompt = systemPrompt.toLowerCase().includes('json')
+    ? systemPrompt
+    : systemPrompt + '\nRespond in JSON format.';
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
@@ -126,7 +122,7 @@ async function requestOpenAI(config, systemPrompt, userPrompt) {
     body: JSON.stringify({
       model: config.model,
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: finalSystemPrompt },
         { role: "user", content: userPrompt }
       ],
       temperature: 0.2,
@@ -162,7 +158,7 @@ export async function makeStructuredRequest(systemPrompt, userPrompt, responseSc
 
   while (attempts < maxRetries) {
     try {
-      const result = config.provider === 'openai' || config.provider === 'custom' || config.provider === 'doubao'
+      const result = config.provider === 'custom' || config.provider === 'doubao'
         ? await requestOpenAI(config, systemPrompt, userPrompt)
         : await requestGemini(config, systemPrompt, userPrompt, responseSchema);
 

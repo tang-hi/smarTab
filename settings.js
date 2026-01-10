@@ -26,33 +26,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const backToMain = document.getElementById('backToMain');
 
     const MODEL_OPTIONS = {
-        openai: [
-            { value: 'gpt-4o-mini', label: 'GPT-4o mini (fast)' },
-            { value: 'gpt-4o', label: 'GPT-4o (balanced)' }
-        ],
         gemini: [
             { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
             { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
             { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' }
         ],
         doubao: [
-            { value: 'doubao-seed-1.8', label: 'Doubao Seed 1.8 (agent)' },
-            { value: 'doubao-seed-1.6', label: 'Doubao Seed 1.6 (balanced)' },
-            { value: 'doubao-seed-1.6-lite', label: 'Doubao Seed 1.6 Lite (cost-effective)' },
-            { value: 'doubao-seed-1.6-flash', label: 'Doubao Seed 1.6 Flash (fast)' }
+            { value: 'doubao-seed-1-6-flash-250828', label: 'Doubao Seed 1.6 Flash (fast)' },
+            { value: 'doubao-seed-1-6-lite-251015', label: 'Doubao Seed 1.6 Lite (cost-effective)' },
+            { value: 'doubao-seed-1-6-251015', label: 'Doubao Seed 1.6 (balanced)' },
+            { value: 'doubao-seed-1-8-251228', label: 'Doubao Seed 1.8 (agent)' }
         ],
         custom: []
     };
 
     const DEFAULT_MODEL = {
-        openai: 'gpt-4o-mini',
         gemini: 'gemini-2.0-flash',
-        doubao: 'doubao-seed-1.6-flash',
+        doubao: 'doubao-seed-1-6-flash-250828',
         custom: ''
     };
 
     const PROVIDER_API_BASE = {
-        openai: 'https://api.openai.com/v1',
         gemini: 'https://generativelanguage.googleapis.com/v1beta',
         doubao: 'https://ark.cn-beijing.volces.com/api/v3'
     };
@@ -122,18 +116,6 @@ document.addEventListener('DOMContentLoaded', () => {
                         value: m.name.replace('models/', ''),
                         label: m.displayName || m.name.replace('models/', '')
                     })) || null;
-            }
-
-            if (provider === 'openai') {
-                const response = await fetch('https://api.openai.com/v1/models', {
-                    headers: { 'Authorization': `Bearer ${key}` }
-                });
-                if (!response.ok) return null;
-                const data = await response.json();
-                return data.data
-                    ?.filter(m => m.id.includes('gpt'))
-                    ?.sort((a, b) => a.id.localeCompare(b.id))
-                    ?.map(m => ({ value: m.id, label: m.id })) || null;
             }
 
             if (provider === 'doubao') {
@@ -232,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let baseUrl = 'https://api.openai.com/v1';
+        let baseUrl = '';
         if (provider === 'custom') {
             const customUrl = customApiBaseUrl.value.trim();
             if (!customUrl) {
@@ -283,6 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error(text || `HTTP ${response.status}`);
                 }
             } else {
+                // custom provider
                 const response = await fetch(`${baseUrl}/chat/completions`, {
                     method: 'POST',
                     headers: {
@@ -317,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load Settings
     // ==========================================
     let modelByProvider = {
-        openai: DEFAULT_MODEL.openai,
         gemini: DEFAULT_MODEL.gemini,
         doubao: DEFAULT_MODEL.doubao,
         custom: ''
@@ -333,7 +315,6 @@ document.addEventListener('DOMContentLoaded', () => {
         'apiKey',
         'aiProvider',
         'modelName',
-        'openaiModelName',
         'geminiModelName',
         'doubaoModelName',
         'customModelName',
@@ -352,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Model settings
         modelByProvider = {
-            openai: result.openaiModelName ?? result.modelName ?? DEFAULT_MODEL.openai,
             gemini: result.geminiModelName ?? result.modelName ?? DEFAULT_MODEL.gemini,
             doubao: result.doubaoModelName ?? DEFAULT_MODEL.doubao,
             custom: result.customModelName ?? ''
@@ -411,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chrome.storage.sync.set({
             aiProvider: provider,
             modelName: nextModel,
-            ...(provider === 'openai' ? { openaiModelName: nextModel } : {}),
             ...(provider === 'gemini' ? { geminiModelName: nextModel } : {}),
             ...(provider === 'doubao' ? { doubaoModelName: nextModel } : {})
         });
@@ -423,7 +402,6 @@ document.addEventListener('DOMContentLoaded', () => {
         modelByProvider[provider] = modelNameSelect.value;
         chrome.storage.sync.set({
             modelName: modelNameSelect.value,
-            ...(provider === 'openai' ? { openaiModelName: modelNameSelect.value } : {}),
             ...(provider === 'gemini' ? { geminiModelName: modelNameSelect.value } : {}),
             ...(provider === 'doubao' ? { doubaoModelName: modelNameSelect.value } : {})
         });

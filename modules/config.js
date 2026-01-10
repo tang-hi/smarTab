@@ -16,15 +16,11 @@ export const DEFAULTS = {
 export const ALLOWED_COLORS = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan'];
 
 export const AI_MODELS = {
-  openai: {
-    default: 'gpt-4o-mini',
-    baseUrl: 'https://api.openai.com/v1'
-  },
   gemini: {
     default: 'gemini-2.0-flash'
   },
   doubao: {
-    default: 'doubao-seed-1.6-flash',
+    default: 'doubao-seed-1-6-flash-250828',
     baseUrl: 'https://ark.cn-beijing.volces.com/api/v3'
   }
 };

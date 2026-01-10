@@ -13,7 +13,8 @@ let tabGroups = {};
 
 // Semantic search state
 let useSemanticSearch = false;
-let geminiApiKey = null;
+let apiKey = null;
+let aiProvider = null;
 let tabEmbeddings = {}; // { tabId: { text: string, embedding: number[] } }
 let searchDebounceTimer = null;
 
@@ -22,12 +23,16 @@ let searchDebounceTimer = null;
 // ==========================================
 async function loadTabs() {
     try {
-        // Check if Gemini is configured
+        // Check if Gemini or Doubao is configured for semantic search
         const settings = await chrome.storage.sync.get(['aiProvider', 'apiKey']);
-        if (settings.aiProvider === 'gemini' && settings.apiKey) {
-            geminiApiKey = settings.apiKey;
+        console.log('[Debug] Settings:', { aiProvider: settings.aiProvider, hasApiKey: !!settings.apiKey });
+
+        if ((settings.aiProvider === 'gemini' || settings.aiProvider === 'doubao') && settings.apiKey) {
+            apiKey = settings.apiKey;
+            aiProvider = settings.aiProvider;
             useSemanticSearch = true;
             searchModeIndicator.classList.remove('hidden');
+            console.log('[Debug] Semantic search enabled for:', aiProvider);
         }
 
         const response = await chrome.runtime.sendMessage({ action: 'getAllTabs' });
@@ -51,14 +56,14 @@ async function loadTabs() {
 }
 
 // ==========================================
-// Gemini Embedding API
+// Embedding API
 // ==========================================
-async function getEmbeddings(texts) {
-    if (!geminiApiKey || texts.length === 0) return null;
+async function getGeminiEmbeddings(texts) {
+    if (!apiKey || texts.length === 0) return null;
 
     try {
         const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=${geminiApiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=${apiKey}`,
             {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -72,16 +77,72 @@ async function getEmbeddings(texts) {
         );
 
         if (!response.ok) {
-            console.error('Embedding API error:', response.status);
+            console.error('Gemini Embedding API error:', response.status);
             return null;
         }
 
         const data = await response.json();
         return data.embeddings?.map(e => e.values) || null;
     } catch (error) {
-        console.error('Error getting embeddings:', error);
+        console.error('Error getting Gemini embeddings:', error);
         return null;
     }
+}
+
+async function getDoubaoEmbeddings(texts) {
+    if (!apiKey || texts.length === 0) return null;
+
+    console.log('[Debug] Doubao embedding request for', texts.length, 'texts');
+
+    try {
+        // Doubao multimodal endpoint returns one embedding per request
+        // So we need to make separate requests for each text
+        const embeddings = [];
+
+        for (const text of texts) {
+            const response = await fetch(
+                'https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'doubao-embedding-vision-250615',
+                        input: [{ type: 'text', text }]
+                    })
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Doubao Embedding API error:', response.status, errorText);
+                return null;
+            }
+
+            const data = await response.json();
+            if (data.data?.embedding) {
+                embeddings.push(data.data.embedding);
+            } else {
+                console.error('Unexpected Doubao response structure:', data);
+                return null;
+            }
+        }
+
+        console.log('[Debug] Extracted embeddings:', embeddings.length, 'vectors');
+        return embeddings;
+    } catch (error) {
+        console.error('Error getting Doubao embeddings:', error);
+        return null;
+    }
+}
+
+async function getEmbeddings(texts) {
+    if (aiProvider === 'doubao') {
+        return getDoubaoEmbeddings(texts);
+    }
+    return getGeminiEmbeddings(texts);
 }
 
 async function getQueryEmbedding(query) {
