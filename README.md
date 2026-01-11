@@ -2,6 +2,9 @@
 
 <h3 align="center"> SmarTab is a browser extension that uses AI to intelligently organize your browser tabs into meaningful groups and provides smart search with semantic understanding. </h3>
 
+## Demo
+
+[![SmarTab Demo](https://img.youtube.com/vi/eeT-Ff2kFao/0.jpg)](https://www.youtube.com/watch?v=eeT-Ff2kFao)
 
 ## Installation
 
