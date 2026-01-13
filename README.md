@@ -8,6 +8,12 @@
 
 ## Installation
 
+### From Chrome Web Store
+
+<a href="https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln">
+  <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/UV4C4ybeBTsZt43U4xis.png" alt="Available in the Chrome Web Store" height="58">
+</a>
+
 ### From Source
 
 1. Clone or download this repository
