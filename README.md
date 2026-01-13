@@ -52,7 +52,7 @@ Find any tab instantly with powerful search capabilities.
 ### From Chrome Web Store
 
 <a href="https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln">
-  <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/UV4C4ybeBTsZt43U4xis.png" alt="Available in the Chrome Web Store" height="58">
+  <img src="https://user-images.githubusercontent.com/53124886/111952712-34f12300-8aee-11eb-9fdd-ad579a1eb235.png" alt="Available in the Chrome Web Store" height="58">
 </a>
 
 ### From Source
