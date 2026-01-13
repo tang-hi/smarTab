@@ -1,30 +1,15 @@
-<h1 align="center"> SmarTab - AI-Powered Tab Management </h1>
+# SmarTab
 
-<h3 align="center"> SmarTab is a browser extension that uses AI to intelligently organize your browser tabs into meaningful groups and provides smart search with semantic understanding. </h3>
+**AI-Powered Tab Management for Chrome**
+
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Available-brightgreen?logo=googlechrome)](https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+> A browser extension that uses AI to intelligently organize your browser tabs into meaningful groups and provides smart search with semantic understanding.
 
 ## Demo
 
 [![SmarTab Demo](https://img.youtube.com/vi/eeT-Ff2kFao/0.jpg)](https://www.youtube.com/watch?v=eeT-Ff2kFao)
-
-## Installation
-
-### From Chrome Web Store
-
-<a href="https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln">
-  <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/UV4C4ybeBTsZt43U4xis.png" alt="Available in the Chrome Web Store" height="58">
-</a>
-
-### From Source
-
-1. Clone or download this repository
-   ```bash
-   git clone https://github.com/tang-hi/smarTab.git
-   ```
-2. Open Chrome and navigate to `chrome://extensions/`
-3. Enable "Developer mode" in the top right corner
-4. Click "Load unpacked"
-5. Select the `smarTab` folder
-
 
 ## Features
 
@@ -50,17 +35,36 @@ Find any tab instantly with powerful search capabilities.
 
 ### Multiple AI Providers
 
-| Provider | Tab Grouping | Semantic Search |
-|----------|:------------:|:---------------:|
-| **Gemini** | Yes | Yes |
-| **Doubao** | Yes | Yes |
-| **Custom** | Yes | - |
+| Provider   | Tab Grouping | Semantic Search |
+|------------|:------------:|:---------------:|
+| **Gemini** | ✓            | ✓               |
+| **Doubao** | ✓            | ✓               |
+| **Custom** | ✓            | -               |
 
 **Direct API access**: All requests go directly to your chosen provider. No proxy, no relay, no data collection.
 
 ### Auto Tab Management
 
 - **Auto-collapse other groups**: Automatically collapse other tab groups when switching between them, keeping your browser tidy
+
+## Installation
+
+### From Chrome Web Store
+
+<a href="https://chromewebstore.google.com/detail/smarttab/ffddpdidlmbeleejbllbimfhlmahkkln">
+  <img src="https://storage.googleapis.com/web-dev-uploads/image/WlD8wC6g8khYWPJUsQceQkhXSlv1/UV4C4ybeBTsZt43U4xis.png" alt="Available in the Chrome Web Store" height="58">
+</a>
+
+### From Source
+
+1. Clone or download this repository
+   ```bash
+   git clone https://github.com/tang-hi/smarTab.git
+   ```
+2. Open Chrome and navigate to `chrome://extensions/`
+3. Enable "Developer mode" in the top right corner
+4. Click "Load unpacked"
+5. Select the `smarTab` folder
 
 ## How to Use
 
@@ -77,7 +81,6 @@ Find any tab instantly with powerful search capabilities.
 2. Type to filter tabs by title, URL, or group name
 3. Use arrow keys to navigate results
 4. Press Enter to switch to the selected tab
-
 
 ### Semantic Search
 
@@ -129,11 +132,13 @@ Example: Always group GitHub tabs together. Separate work docs from tutorials.
 
 ## Permissions
 
-- `tabs`: Access tab information for grouping and search
-- `tabGroups`: Create and manage tab groups
-- `storage`: Save settings and embedding cache
-- `scripting`: Inject search overlay on keyboard shortcut
-- `<all_urls>`: Required for content script injection
+| Permission    | Purpose                                      |
+|---------------|----------------------------------------------|
+| `tabs`        | Access tab information for grouping and search |
+| `tabGroups`   | Create and manage tab groups                 |
+| `storage`     | Save settings and embedding cache            |
+| `scripting`   | Inject search overlay on keyboard shortcut   |
+| `<all_urls>`  | Required for content script injection        |
 
 ## Feedback and Support
 
